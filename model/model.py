@@ -1,28 +1,23 @@
-from typing import Annotated
-
 from typing_extensions import TypedDict
 
 from langgraph.graph import StateGraph, START, END
-from langgraph.graph.message import add_messages
 
 
 class State(TypedDict):
-    messages: Annotated[list, add_messages]
+    text: str
+    score: float
 
 
 graph_builder = StateGraph(State)
 
 
-def chatbot(state: State):
-    return {'messages': [*state['messages'], "Hello, I'm fine, thanks"]}
+def judge(state: State):
+    return {'score': 0.8}
 
 
-graph_builder.add_node('chatbot', chatbot)
+graph_builder.add_node('judge', judge)
 
-graph_builder.add_edge(START, 'chatbot')
-graph_builder.add_edge('chatbot', END)
+graph_builder.add_edge(START, 'judge')
+graph_builder.add_edge('judge', END)
 
-graph = graph_builder.compile()
-
-
-print(graph.invoke({'messages': ['Hello, how are you?']}))
+model = graph_builder.compile()
