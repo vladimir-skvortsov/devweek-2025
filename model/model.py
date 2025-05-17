@@ -14,15 +14,15 @@ graph_builder = StateGraph(State)
 
 
 def chatbot(state: State):
-    return {"messages": [*state["messages"], "Hello, I'm fine, thanks"]}
+    return {'messages': [*state['messages'], "Hello, I'm fine, thanks"]}
 
 
-graph_builder.add_node("chatbot", chatbot)
+graph_builder.add_node('chatbot', chatbot)
 
-graph_builder.add_edge(START, "chatbot")
-graph_builder.add_edge("chatbot", END)
+graph_builder.add_edge(START, 'chatbot')
+graph_builder.add_edge('chatbot', END)
 
 graph = graph_builder.compile()
 
 
-print(graph.invoke({"messages": ["Hello, how are you?"]}))
+print(graph.invoke({'messages': ['Hello, how are you?']}))
