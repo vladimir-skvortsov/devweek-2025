@@ -5,6 +5,7 @@ from langgraph.graph import StateGraph, START, END
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+import asyncio
 
 from model.utils.JsonExtractor import JsonExtractor
 from model.utils.OpenRouter import OpenRouter
@@ -44,7 +45,7 @@ class Model:
     def __init__(self):
         self.evaluator_llms = [
             OpenRouter(model_name='openai/gpt-4.1', temperature=0),
-            # OpenRouter(model_name='meta-llama/llama-3.3-8b-instruct:free', temperature=0),
+            OpenRouter(model_name='anthropic/claude-3.7-sonnet', temperature=0),
         ]
         self.evaluator_chains = [
             evaluator_prompt | evaluator_llm | StrOutputParser() | JsonExtractor() | evaluator_parser
@@ -65,17 +66,19 @@ class Model:
     def _clamp(self, n, min_value, max_value):
         return max(min_value, min(n, max_value))
 
-    def _evaluators(self, state: State) -> State:
-        scores = []
+    async def _evaluate_chain(self, chain, text):
+        try:
+            result = await chain.ainvoke({'text': text})
+            score = result.score
+            score = self._clamp(score, 0, 100)
+            return score / 100
+        except:
+            return None
 
-        for chain in self.evaluator_chains:
-            try:
-                score = chain.invoke({'text': state['text']}).score
-                score = self._clamp(score, 0, 100)
-                score /= 100
-                scores.append(score)
-            except:
-                pass
+    async def _evaluators(self, state: State) -> State:
+        tasks = [self._evaluate_chain(chain, state['text']) for chain in self.evaluator_chains]
+        scores = await asyncio.gather(*tasks)
+        scores = [score for score in scores if score is not None]
 
         return {'intermediate_scores': scores}
 
@@ -83,5 +86,5 @@ class Model:
         score = sum(state['intermediate_scores']) / len(state['intermediate_scores'])
         return {'score': score}
 
-    def invoke(self, text: str) -> float:
-        return self.model.invoke({'text': text})['score']
+    async def ainvoke(self, text: str) -> float:
+        return (await self.model.ainvoke({'text': text}))['score']
