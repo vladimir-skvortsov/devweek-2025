@@ -29,7 +29,7 @@ ds_csv = ds_csv.remove_columns([c for c in ds_csv.column_names if c not in keep]
 full_ds = concatenate_datasets([ds_hf1, ds_hf2, ds_csv])
 
 # Mini dataset 1000
-TARGET = 1_000
+TARGET = 100
 parts = [ds_hf1, ds_hf2, ds_csv]
 share = TARGET // len(parts)
 remainder = TARGET - share * len(parts)
