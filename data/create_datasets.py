@@ -28,6 +28,9 @@ ds_csv = ds_csv.remove_columns([c for c in ds_csv.column_names if c not in keep]
 # Full dataset
 full_ds = concatenate_datasets([ds_hf1, ds_hf2, ds_csv])
 
+output_path = pathlib.Path(__file__).with_name('merged.csv')
+full_ds.to_csv(output_path, index=False)
+
 # Mini dataset 1000
 TARGET = 100
 parts = [ds_hf1, ds_hf2, ds_csv]
