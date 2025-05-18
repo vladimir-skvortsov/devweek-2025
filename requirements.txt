@@ -13,3 +13,9 @@ langgraph==0.2.56
 
 datasets==3.6.0
 pyarrow==20.0.0
+kagglehub==0.3.12
+
+python-dotenv~=1.1.0
+pandas~=2.2.3
+langchain-core~=0.3.60
+typing_extensions~=4.13.2
