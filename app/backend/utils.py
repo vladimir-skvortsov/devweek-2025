@@ -4,7 +4,6 @@ from io import BytesIO
 from pptx import Presentation
 import pytesseract
 from PIL import Image
-import magic
 
 
 def extract_text_from_txt(content: bytes) -> str:
