@@ -114,7 +114,7 @@ function App() {
                 type='file'
                 className='hidden'
                 onChange={handleFileUpload}
-                accept='.txt,.doc,.docx,.pdf,.pptx'
+                accept='.txt,.doc,.docx,.pdf,.pptx,.png,.jpg,.jpeg,.gif,.bmp'
                 disabled={loading}
               />
             </label>

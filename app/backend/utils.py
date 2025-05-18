@@ -2,6 +2,9 @@ import docx
 import PyPDF2
 from io import BytesIO
 from pptx import Presentation
+import pytesseract
+from PIL import Image
+import magic
 
 
 def extract_text_from_txt(content: bytes) -> str:
@@ -32,3 +35,24 @@ def extract_text_from_pptx(content: bytes) -> str:
                 text.append(shape.text)
 
     return '\n'.join(text)
+
+
+def extract_text_from_image(content: bytes) -> str:
+    try:
+        # Open the image using PIL
+        image = Image.open(BytesIO(content))
+
+        # Convert to RGB if necessary (for PNG with transparency)
+        if image.mode in ('RGBA', 'LA'):
+            background = Image.new('RGB', image.size, (255, 255, 255))
+            background.paste(image, mask=image.split()[-1])
+            image = background
+        elif image.mode != 'RGB':
+            image = image.convert('RGB')
+
+        # Extract text using Tesseract OCR
+        text = pytesseract.image_to_string(image, lang='rus+eng')
+
+        return text.strip()
+    except Exception as e:
+        raise ValueError(f'Failed to process image: {str(e)}')

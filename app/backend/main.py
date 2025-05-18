@@ -9,7 +9,13 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 
 from config import PROJECT_NAME
-from utils import extract_text_from_docx, extract_text_from_pdf, extract_text_from_txt, extract_text_from_pptx
+from utils import (
+    extract_text_from_docx,
+    extract_text_from_pdf,
+    extract_text_from_txt,
+    extract_text_from_pptx,
+    extract_text_from_image,
+)
 from model.model import Model
 
 load_dotenv()
@@ -46,7 +52,9 @@ async def analyze_file(file: UploadFile = File(...)):
 
     # Extract text based on file type
     try:
-        if mime_type == 'text/plain':
+        if mime_type.startswith('image/'):
+            text = extract_text_from_image(content)
+        elif mime_type == 'text/plain':
             text = extract_text_from_txt(content)
         elif mime_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
             text = extract_text_from_docx(content)
@@ -57,7 +65,7 @@ async def analyze_file(file: UploadFile = File(...)):
         else:
             raise HTTPException(
                 status_code=400,
-                detail=f'Unsupported file type: {mime_type}. Supported types are: text/plain, application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                detail=f'Unsupported file type: {mime_type}. Supported types are: images (PNG, JPEG, etc.), text/plain, application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.presentationml.presentation',
             )
 
         if not text.strip():
@@ -68,5 +76,7 @@ async def analyze_file(file: UploadFile = File(...)):
         return {'score': score, 'text': text, 'mime_type': mime_type}
     except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail='Invalid text encoding. Please ensure the file is UTF-8 encoded.')
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'Error processing file: {str(e)}')
