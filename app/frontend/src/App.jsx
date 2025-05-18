@@ -35,6 +35,37 @@ function App() {
     }
   };
 
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('http://localhost:8000/api/v1/score/file', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to analyze file');
+      }
+
+      const data = await response.json();
+      setScore(data.score);
+      setText(data.text);
+    } catch (err) {
+      setError('Failed to analyze file. Please try again.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getScoreColor = (score) => {
     if (score === null) return 'bg-gray-200';
     if (score < 0.3) return 'bg-red-500';
@@ -54,7 +85,9 @@ function App() {
       <div className='max-w-3xl mx-auto'>
         <div className='text-center mb-8'>
           <h1 className='text-3xl font-bold text-gray-900 mb-2'>AI Text Detector</h1>
-          <p className='text-gray-600'>Введите текст, чтобы определить, написан ли он ИИ или человеком</p>
+          <p className='text-gray-600'>
+            Введите текст или загрузите файл, чтобы определить, написан ли он ИИ или человеком
+          </p>
         </div>
 
         <div className='bg-white rounded-lg shadow-lg p-6'>
@@ -65,7 +98,21 @@ function App() {
             onChange={(e) => setText(e.target.value)}
           />
 
-          <div className='mt-4 flex justify-center'>
+          <div className='mt-4 flex justify-center space-x-4'>
+            <label
+              className={`px-6 py-2 rounded-lg font-medium transition-colors
+              ${loading ? 'text-gray-400 cursor-not-allowed' : 'cursor-pointer text-gray-900 hover:bg-gray-100'}`}
+            >
+              Загрузить файл
+              <input
+                type='file'
+                className='hidden'
+                onChange={handleFileUpload}
+                accept='.txt,.doc,.docx,.pdf'
+                disabled={loading}
+              />
+            </label>
+
             <button
               onClick={analyzeText}
               disabled={loading || !text.trim()}
@@ -76,11 +123,7 @@ function App() {
             </button>
           </div>
 
-          {error && (
-            <div className='mt-4 text-red-600 text-center'>
-              Не удалось проанализировать текст. Пожалуйста, попробуйте снова.
-            </div>
-          )}
+          {error && <div className='mt-4 text-red-600 text-center'>{error}</div>}
 
           {score !== null && (
             <div className='mt-6'>
