@@ -30,7 +30,7 @@ class TextRequest(BaseModel):
     text: str
 
 
-@app.post('/api/v1/score')
+@app.post('/api/v1/score/text')
 async def root(request: TextRequest):
     score = await model.ainvoke({'text': request.text})
     return {'score': score}

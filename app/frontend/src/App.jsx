@@ -13,7 +13,7 @@ function App() {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/score', {
+      const response = await fetch('http://localhost:8000/api/v1/score/text', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
