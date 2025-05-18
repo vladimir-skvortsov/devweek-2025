@@ -80,6 +80,12 @@ function App() {
     return 'Вероятно написано человеком';
   };
 
+  const handleTextChange = (e) => {
+    setText(e.target.value);
+    setScore(null);
+    setError(null);
+  };
+
   return (
     <div className='min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8'>
       <div className='max-w-3xl mx-auto'>
@@ -95,7 +101,7 @@ function App() {
             className='w-full h-48 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
             placeholder='Введите текст для анализа...'
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={handleTextChange}
           />
 
           <div className='mt-4 flex justify-center space-x-4'>
