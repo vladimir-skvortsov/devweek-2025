@@ -59,7 +59,7 @@ function App() {
 
         <div className='bg-white rounded-lg shadow-lg p-6'>
           <textarea
-            className='w-full h-48 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none'
+            className='w-full h-48 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
             placeholder='Введите текст для анализа...'
             value={text}
             onChange={(e) => setText(e.target.value)}
