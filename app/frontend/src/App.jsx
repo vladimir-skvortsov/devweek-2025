@@ -106,10 +106,17 @@ function App() {
 
           <div className='mt-4 flex justify-center space-x-4'>
             <label
-              className={`px-6 py-2 rounded-lg font-medium transition-colors
+              className={`px-6 py-2 rounded-lg font-medium transition-colors relative group
               ${loading ? 'text-gray-400 cursor-not-allowed' : 'cursor-pointer text-gray-900 hover:bg-gray-100'}`}
             >
               Загрузить файл
+              <div className='absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none'>
+                Поддерживаемые форматы:
+                <br />
+                .txt, .doc, .docs, .pdf, .pptx
+                <br />
+                .png, .jpg, .jpeg, .gif, .bmp
+              </div>
               <input
                 type='file'
                 className='hidden'
