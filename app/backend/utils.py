@@ -36,6 +36,7 @@ def extract_text_from_pptx(content: bytes) -> str:
     return '\n'.join(text)
 
 
+# TODO: extract text from image using Gemini
 def extract_text_from_image(content: bytes) -> str:
     try:
         # Open the image using PIL
