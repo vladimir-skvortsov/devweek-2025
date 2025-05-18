@@ -106,10 +106,17 @@ function App() {
 
           <div className='mt-4 flex justify-center space-x-4'>
             <label
-              className={`px-6 py-2 rounded-lg font-medium transition-colors relative group
+              className={`px-6 py-2 rounded-lg font-medium transition-colors relative group flex items-center space-x-2
               ${loading ? 'text-gray-400 cursor-not-allowed' : 'cursor-pointer text-gray-900 hover:bg-gray-100'}`}
             >
-              Загрузить файл
+              <svg xmlns='http://www.w3.org/2000/svg' className='h-5 w-5' viewBox='0 0 20 20' fill='currentColor'>
+                <path
+                  fillRule='evenodd'
+                  d='M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z'
+                  clipRule='evenodd'
+                />
+              </svg>
+              <span>Загрузить файл</span>
               <div className='absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none'>
                 Поддерживаемые форматы:
                 <br />
