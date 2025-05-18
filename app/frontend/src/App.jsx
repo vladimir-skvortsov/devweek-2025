@@ -43,10 +43,10 @@ function App() {
   };
 
   const getScoreText = (score) => {
-    if (score === null) return 'Not analyzed';
-    if (score < 0.3) return 'Likely AI-generated';
-    if (score < 0.7) return 'Uncertain';
-    return 'Likely Human-written';
+    if (score === null) return 'Не проанализировано';
+    if (score < 0.3) return 'Вероятно написано ИИ';
+    if (score < 0.7) return 'Неопределенно';
+    return 'Вероятно написано человеком';
   };
 
   return (
@@ -54,13 +54,13 @@ function App() {
       <div className='max-w-3xl mx-auto'>
         <div className='text-center mb-8'>
           <h1 className='text-3xl font-bold text-gray-900 mb-2'>AI Text Detector</h1>
-          <p className='text-gray-600'>Enter text to analyze if it was written by AI or a human</p>
+          <p className='text-gray-600'>Введите текст, чтобы определить, написан ли он ИИ или человеком</p>
         </div>
 
         <div className='bg-white rounded-lg shadow-lg p-6'>
           <textarea
             className='w-full h-48 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none'
-            placeholder='Enter text to analyze...'
+            placeholder='Введите текст для анализа...'
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
@@ -72,11 +72,15 @@ function App() {
               className={`px-6 py-2 rounded-lg font-medium text-white transition-colors
                 ${loading || !text.trim() ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
             >
-              {loading ? 'Analyzing...' : 'Analyze Text'}
+              {loading ? 'Анализ...' : 'Анализировать текст'}
             </button>
           </div>
 
-          {error && <div className='mt-4 text-red-600 text-center'>{error}</div>}
+          {error && (
+            <div className='mt-4 text-red-600 text-center'>
+              Не удалось проанализировать текст. Пожалуйста, попробуйте снова.
+            </div>
+          )}
 
           {score !== null && (
             <div className='mt-6'>
