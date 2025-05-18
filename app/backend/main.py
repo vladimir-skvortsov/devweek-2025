@@ -5,6 +5,7 @@ sys.path.append('../..')
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from pydantic import BaseModel
 
 from config import PROJECT_NAME
 from model.model import Model
@@ -23,7 +24,11 @@ app.add_middleware(
 )
 
 
-@app.get('/api/v1/score')
-async def root(text: str):
-    score = await model.ainvoke({'text': text})
+class TextRequest(BaseModel):
+    text: str
+
+
+@app.post('/api/v1/score')
+async def root(request: TextRequest):
+    score = await model.ainvoke({'text': request.text})
     return {'score': score}
