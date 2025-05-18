@@ -1,2 +1,1 @@
-# TODO: change project name, when we got the real one
-PROJECT_NAME: str = "DevWeek 2025"
+PROJECT_NAME: str = 'AI Text Detector'
