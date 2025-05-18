@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 
 from config import PROJECT_NAME
-from utils import extract_text_from_docx, extract_text_from_pdf, extract_text_from_txt
+from utils import extract_text_from_docx, extract_text_from_pdf, extract_text_from_txt, extract_text_from_pptx
 from model.model import Model
 
 load_dotenv()
@@ -52,10 +52,12 @@ async def analyze_file(file: UploadFile = File(...)):
             text = extract_text_from_docx(content)
         elif mime_type == 'application/pdf':
             text = extract_text_from_pdf(content)
+        elif mime_type == 'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+            text = extract_text_from_pptx(content)
         else:
             raise HTTPException(
                 status_code=400,
-                detail=f'Unsupported file type: {mime_type}. Supported types are: text/plain, application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                detail=f'Unsupported file type: {mime_type}. Supported types are: text/plain, application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.presentationml.presentation',
             )
 
         if not text.strip():
