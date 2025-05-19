@@ -3,6 +3,7 @@ import { useState } from 'react';
 function App() {
   const [text, setText] = useState('');
   const [score, setScore] = useState(null);
+  const [explanation, setExplanation] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -171,14 +172,18 @@ function App() {
           {error && <div className='mt-4 text-red-600 text-center'>{error}</div>}
 
           {score !== null && (
-            <div className='mt-6'>
-              <div className='flex items-center justify-center space-x-4'>
-                <div className={`w-24 h-24 rounded-full ${getScoreColor(score)} flex items-center justify-center`}>
-                  <span className='text-white text-2xl font-bold'>{(score * 100).toFixed(1)}%</span>
+              <div className='mt-6'>
+                <div className='flex items-center justify-center space-x-4'>
+                  <div className={`w-24 h-24 rounded-full ${getScoreColor(score)} flex items-center justify-center`}>
+                    <span className='text-white text-2xl font-bold'>{(score * 100).toFixed(1)}%</span>
+                  </div>
+                  <div className='text-lg font-medium text-gray-700'>{getScoreText(score)}</div>
                 </div>
-                <div className='text-lg font-medium text-gray-700'>{getScoreText(score)}</div>
+                <div className="mt-6 bg-white p-6 rounded-lg shadow">
+                  <h2 className="text-xl font-semibold mb-4">Detailed Explanation</h2>
+                  <p className="text-gray-800 whitespace-pre-line">{explanation}</p>
+                </div>
               </div>
-            </div>
           )}
         </div>
       </div>
