@@ -106,7 +106,7 @@ function App() {
         <div className='bg-white rounded-xl shadow-lg p-6'>
           <div className='relative'>
             <textarea
-              className='w-full min-h-56 h-56 max-h-96 overflow-y-auto p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+              className='w-full min-h-56 h-56 max-h-96 overflow-y-auto p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#4F46E5] focus:border-[#4F46E5]'
               placeholder='Введите текст для анализа...'
               value={text}
               onChange={handleTextChange}
@@ -162,7 +162,7 @@ function App() {
               onClick={analyzeText}
               disabled={loading || !text.trim()}
               className={`px-6 py-2 rounded-lg font-medium text-white transition-colors
-                ${loading || !text.trim() ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                ${loading || !text.trim() ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#4F46E5] hover:bg-[#6a63e9]'}`}
             >
               {loading ? 'Анализ...' : 'Анализировать текст'}
             </button>
