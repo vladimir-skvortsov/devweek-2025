@@ -180,7 +180,7 @@ function App() {
                   <div className='text-lg font-medium text-gray-700'>{getScoreText(score)}</div>
                 </div>
                 <div className="mt-6 bg-white p-6 rounded-lg shadow">
-                  <h2 className="text-xl font-semibold mb-4">Detailed Explanation</h2>
+                  <h2 className="text-xl font-semibold mb-4">Анализ текста</h2>
                   <p className="text-gray-800 whitespace-pre-line">{explanation}</p>
                 </div>
               </div>

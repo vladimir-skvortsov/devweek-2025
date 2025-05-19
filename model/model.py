@@ -21,6 +21,10 @@ class EvaluatorSchema(BaseModel):
     score: int = Field(description='Given the text, return score from 0 to 100 indicating how human-like the text is')
 
 
+class ExplanationSchema(BaseModel):
+    explanation: str = Field(..., description='Detailed analysis of why the detector scored this way')
+
+
 evaluator_template = """
 Analyze the provided text and return a score from 0 to 100, where:
 0 = Definitely AI-written,
@@ -39,10 +43,44 @@ evaluator_prompt = PromptTemplate(
 )
 
 
+explanation_template = """
+You are an expert interpreter of AI Text Detector outputs.
+The detector has assigned the following input text a human-likeness score of {score}%:
+
+=== Begin Input Text ===
+{text}
+=== End Input Text ===
+
+Please provide a single, comprehensive explanation—of at least 150 words—describing exactly why the model evaluated 
+this text this way.
+Focus on the internal criteria of the neural detector, such as:
+- Vocabulary richness (diversity of words, rare/idiomatic expressions)
+- Syntactic complexity (sentence length variation, clauses, punctuation)
+- Semantic coherence (logical flow, thematic consistency)
+- Stylistic markers (tone, personalization, emotional nuance)
+- Repetitive or templated phrasing indicative of AI output
+
+**Answer in Russian.**  
+**Format the explanation into clear paragraphs**, using an empty line to separate each paragraph.
+
+Return strictly a JSON object in this exact format:
+{{
+  "explanation": "<your detailed analysis in Russian, nicely broken into paragraphs>"
+}}
+Do not include any additional keys, comments or free-form text outside of this JSON.
+"""
+explanation_parser = PydanticOutputParser(pydantic_object=ExplanationSchema)
+explanation_prompt = PromptTemplate(
+    template=explanation_template,
+    input_variables=['text', 'score'],
+)
+
+
 class State(TypedDict):
     text: str
     intermediate_scores: list[float]
     score: float
+    explanation: str
 
 
 class Model:
@@ -64,14 +102,18 @@ class Model:
             for evaluator_llm in self.evaluator_llms
         ]
 
+        self.explanation_llm = OpenRouter(model_name='openai/o4-mini', temperature=0)
+
         graph_builder = StateGraph(State)
 
         graph_builder.add_node('evaluators', self._evaluators)
         graph_builder.add_node('aggregator', self._aggregator)
+        graph_builder.add_node('explanation_node', self._explanation)
 
         graph_builder.add_edge(START, 'evaluators')
         graph_builder.add_edge('evaluators', 'aggregator')
-        graph_builder.add_edge('aggregator', END)
+        graph_builder.add_edge('aggregator', 'explanation_node')
+        graph_builder.add_edge('explanation_node', END)
 
         self.model = graph_builder.compile()
 
@@ -125,5 +167,19 @@ class Model:
         score = sum(state['intermediate_scores']) / len(state['intermediate_scores'])
         return {'score': score}
 
+    async def _explanation(self, state: State) -> State:
+        prompt_values = {'text': state['text'], 'score': round(state['score'] * 100, 1)}
+
+        tpl = explanation_prompt.format(**prompt_values)
+
+        resp = await self.explanation_llm.ainvoke(tpl)
+        text_resp = getattr(resp, 'content', str(resp))
+        try:
+            parsed = explanation_parser.parse(text_resp)
+            return {'explanation': parsed.explanation}
+        except Exception:
+            return {'explanation': text_resp}
+
     async def ainvoke(self, text: str) -> float:
-        return (await self.model.ainvoke(text))['score']
+        init_state = {'text': text}
+        return await self.model.ainvoke(init_state)
