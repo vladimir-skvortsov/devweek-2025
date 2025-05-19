@@ -4,6 +4,7 @@ import pandas as pd
 from dotenv import load_dotenv
 
 from providers import KaggleProvider, HuggingFaceProvider
+from S3Client import S3Client
 
 load_dotenv()
 
@@ -54,19 +55,40 @@ datasets = [
     ),
 ]
 
-datasets_df = [dataset.get_df() for dataset in datasets]
-merged_df = pd.concat(datasets_df)
+s3_client = S3Client()
+S3_MERGED_PATH = s3_client.get_cache_key('merged')
+S3_SAMPLE_PATH = s3_client.get_cache_key('merged_sample')
 
-SAMPLE_SIZE = 100
-share = SAMPLE_SIZE // len(datasets_df)
-remainder = SAMPLE_SIZE - share * len(datasets_df)
+# Try to download existing datasets from S3
+try:
+    merged_df = s3_client.download_df(S3_MERGED_PATH)
+    sample_df = s3_client.download_df(S3_SAMPLE_PATH)
+    print('Successfully downloaded datasets from S3')
+except Exception as e:
+    print(f'Datasets not found in S3 or download failed: {e}')
+    print('Creating datasets locally...')
 
-samples_df = []
-for i, sample_df in enumerate(datasets_df):
-    n = share + (1 if i < remainder else 0)
-    samples_df.append(sample_df.sample(n=n, random_state=0))
+    # Create datasets locally
+    datasets_df = [dataset.get_df() for dataset in datasets]
+    merged_df = pd.concat(datasets_df)
 
-sample_df = pd.concat(samples_df)
+    SAMPLE_SIZE = 100
+    share = SAMPLE_SIZE // len(datasets_df)
+    remainder = SAMPLE_SIZE - share * len(datasets_df)
+
+    samples_df = []
+    for i, sample_df in enumerate(datasets_df):
+        n = share + (1 if i < remainder else 0)
+        samples_df.append(sample_df.sample(n=n, random_state=0))
+
+    sample_df = pd.concat(samples_df)
+
+    # Save locally and upload to S3
+
+    # Upload to S3
+    s3_client.upload_df(merged_df, S3_MERGED_PATH)
+    s3_client.upload_df(sample_df, S3_SAMPLE_PATH)
+    print('Successfully created and uploaded datasets to S3')
 
 merged_df.to_csv('merged.csv', index=False)
 sample_df.to_csv('merged_sample.csv', index=False)
