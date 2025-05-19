@@ -70,5 +70,3 @@ sample_df = pd.concat(samples_df)
 
 merged_df.to_csv('merged.csv', index=False)
 sample_df.to_csv('merged_sample.csv', index=False)
-
-print(len(merged_df), len(sample_df))

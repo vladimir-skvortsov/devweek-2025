@@ -23,7 +23,7 @@ class S3Client:
         self.bucket = os.getenv('S3_BUCKET')
 
     def get_cache_key(self, dataset_id: str) -> str:
-        return f'{dataset_id}.parquet'
+        return f'{dataset_id.replace("/", "-")}.parquet'
 
     def exists(self, key: str) -> bool:
         try:
