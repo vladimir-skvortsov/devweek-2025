@@ -6,3 +6,5 @@ __pycache__/
 
 data/merged.csv
 data/merged_sample.csv
+merged.csv
+merged_sample.csv

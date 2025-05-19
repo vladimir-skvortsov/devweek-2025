@@ -1,11 +1,24 @@
 import os
 import uuid
 import pandas as pd
+import argparse
 from dotenv import load_dotenv
 
 from providers import KaggleProvider, HuggingFaceProvider, FileProvider, KaggleCompetitionProvider
 from providers import KaggleProvider, HuggingFaceProvider, FileProvider
 from S3Client import S3Client
+
+parser = argparse.ArgumentParser(
+    prog='create dataset',
+    description='Download datasets from kaggle, hf or own S3',
+    epilog='Text at the bottom of help')
+
+parser.add_argument('-s', '--use-s3',
+                    action='store_true', help='Download from S3 (if omitted, downloads directly from Kaggle/HF)', default=False)
+parser.add_argument('-u', '--upload-to-s3',
+                    action='store_true', help='Upload datasets to s3', default=False)
+
+our_namespace = parser.parse_args()
 
 load_dotenv()
 
@@ -49,7 +62,7 @@ datasets = [
               .assign(text_clean=lambda x: x['text'].str.replace(r'\s+', ' ', regex=True).str.strip())
               .drop_duplicates(subset=['text_clean'])
               .drop(columns=['generated', 'text_clean'])
-              [['id', 'text', 'is_human']]
+            [['id', 'text', 'is_human']]
         ),
     ),
     # HuggingFace datasets
@@ -86,28 +99,26 @@ s3_client = S3Client()
 S3_MERGED_PATH = s3_client.get_cache_key('merged')
 S3_SAMPLE_PATH = s3_client.get_cache_key('merged_sample')
 
-# Try to download existing datasets from S3
-try:
-    raise Exception('test')
+merged_df = None
+sample_df = None
+if our_namespace.use_s3:
     merged_df = s3_client.download_df(S3_MERGED_PATH)
     sample_df = s3_client.download_df(S3_SAMPLE_PATH)
     print('Successfully downloaded datasets from S3')
-except Exception as e:
-    print(f'Datasets not found in S3 or download failed: {e}')
+else:
     print('Creating datasets locally...')
 
-    # Create datasets locally
-    datasets_df = [dataset.get_df() for dataset in datasets]
-
+    datasets_df = [dataset.get_df() for dataset in datasets]    
+    print(sum(len(dataset) for dataset in datasets_df))
     merged_df = pd.concat(datasets_df, ignore_index=True)
-    merged_df["text_clean"] = merged_df["text"].astype(str).str.replace(r"\s+", " ", regex=True).str.strip()
-    before_merge = len(merged_df)
-    merged_df = merged_df.drop_duplicates(subset=["text_clean"]).drop(columns=["text_clean"]).reset_index(drop=True)
+    merged_df = merged_df.drop_duplicates(
+        subset=["text"]).reset_index(drop=True)
+    print(f"{merged_df.size=}", f"{len(merged_df)=}")
 
     SAMPLE_SIZE = 100
     sample_df = merged_df.sample(n=SAMPLE_SIZE, random_state=0)
 
-    # Upload to S3
+if our_namespace.upload_to_s3:
     s3_client.upload_df(merged_df, S3_MERGED_PATH)
     s3_client.upload_df(sample_df, S3_SAMPLE_PATH)
     print('Successfully created and uploaded datasets to S3')
