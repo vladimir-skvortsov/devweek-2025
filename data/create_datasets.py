@@ -97,12 +97,11 @@ except Exception as e:
 
     sample_df = pd.concat(samples_df)
 
-    # Save locally and upload to S3
-
     # Upload to S3
     s3_client.upload_df(merged_df, S3_MERGED_PATH)
     s3_client.upload_df(sample_df, S3_SAMPLE_PATH)
     print('Successfully created and uploaded datasets to S3')
 
+# Save locally
 merged_df.to_csv('merged.csv', index=False)
 sample_df.to_csv('merged_sample.csv', index=False)
