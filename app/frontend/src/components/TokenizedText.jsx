@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
 
+const SUSPICIOUS_THRESHOLD = 0.6;
+
 const TokenizedText = ({ text, tokens, onTokenClick }) => {
   const [hoveredToken, setHoveredToken] = useState(null);
-  const SUSPICIOUS_THRESHOLD = 0.6;
 
   const getTokenColor = (aiProb) => {
     if (aiProb < SUSPICIOUS_THRESHOLD) return 'transparent';
