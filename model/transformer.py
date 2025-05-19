@@ -2,6 +2,7 @@ import torch.nn as nn
 from transformers import AutoTokenizer
 
 # Initialize tokenizer
+# TODO: use https://huggingface.co/FacebookAI/xlm-roberta-base
 tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
 MAX_LENGTH = 512  # Maximum sequence length
 
