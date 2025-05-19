@@ -3,7 +3,7 @@ import uuid
 import pandas as pd
 from dotenv import load_dotenv
 
-from providers import KaggleProvider, HuggingFaceProvider
+from providers import KaggleProvider, HuggingFaceProvider, FileProvider
 from S3Client import S3Client
 
 load_dotenv()
@@ -38,6 +38,20 @@ datasets = [
         'carlmcbrideellis/llm-7-prompt-training-dataset',
         lambda df: df[['text', 'label']].assign(
             is_human=lambda x: 1 - x['label'], id=lambda x: [uuid.uuid4().hex for _ in range(len(x))]
+        )[['id', 'text', 'is_human']],
+    ),
+    FileProvider(
+        'raw_datasets/ruatd-2022-bi-train.csv',
+        transform_func=lambda df: df.rename(columns={'Text': 'text'}).assign(
+            is_human=lambda x: (x['Class'] == 'H').astype('int64'),
+            id=lambda x: [uuid.uuid4().hex for _ in range(len(x))],
+        )[['id', 'text', 'is_human']],
+    ),
+    FileProvider(
+        'raw_datasets/ruatd-2022-bi-val.csv',
+        transform_func=lambda df: df.rename(columns={'Text': 'text'}).assign(
+            is_human=lambda x: (x['Class'] == 'H').astype('int64'),
+            id=lambda x: [uuid.uuid4().hex for _ in range(len(x))],
         )[['id', 'text', 'is_human']],
     ),
     # HuggingFace datasets
@@ -83,12 +97,11 @@ except Exception as e:
 
     sample_df = pd.concat(samples_df)
 
-    # Save locally and upload to S3
-
     # Upload to S3
     s3_client.upload_df(merged_df, S3_MERGED_PATH)
     s3_client.upload_df(sample_df, S3_SAMPLE_PATH)
     print('Successfully created and uploaded datasets to S3')
 
+# Save locally
 merged_df.to_csv('merged.csv', index=False)
 sample_df.to_csv('merged_sample.csv', index=False)
