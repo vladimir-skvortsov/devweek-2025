@@ -3,7 +3,7 @@ import uuid
 import pandas as pd
 from dotenv import load_dotenv
 
-from providers import KaggleProvider, HuggingFaceProvider, KaggleCompetitionProvider
+from providers import KaggleProvider, HuggingFaceProvider, FileProvider, KaggleCompetitionProvider
 from S3Client import S3Client
 
 load_dotenv()
