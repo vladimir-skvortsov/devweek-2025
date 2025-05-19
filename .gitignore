@@ -6,3 +6,5 @@ __pycache__/
 
 data/merged.csv
 data/merged_sample.csv
+
+model/transformer.pth
