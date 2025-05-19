@@ -27,6 +27,10 @@ class Provider(ABC):
         df = self._download()
         df = self.transform_func(df)
 
+        # Deduplication
+        df["text_clean"] = df["text"].astype(str).str.replace(r"\s+", " ", regex=True).str.strip()
+        df = df.drop_duplicates(subset=["text_clean"]).drop(columns=["text_clean"]).reset_index(drop=True)
+
         print(f'Caching {self.dataset_id} {cache_key}')
         self.s3.upload_df(df, cache_key)
 
@@ -49,6 +53,28 @@ class KaggleProvider(Provider):
         if not csv_files:
             raise Exception(f'No CSV files found in {self.dataset_id}')
         return pd.read_csv(os.path.join(path, csv_files[0]))
+
+
+class KaggleCompetitionProvider(Provider):
+    def __init__(
+        self,
+        competition_slug: str,
+        csv_filename: str,
+        transform_func: Callable[[pd.DataFrame], pd.DataFrame],
+    ):
+        stem = Path(csv_filename).stem
+        cache_key = f'kaggle_comp_{competition_slug}_{stem}'
+        super().__init__(cache_key, transform_func)
+        self.competition_slug = competition_slug
+        self.csv_filename = csv_filename
+
+    def _download(self) -> pd.DataFrame:
+        csv_path = kagglehub.competition_download(
+            self.competition_slug,
+            path=self.csv_filename,
+            force_download=False,
+        )
+        return pd.read_csv(csv_path)
 
 
 class HuggingFaceProvider(Provider):
