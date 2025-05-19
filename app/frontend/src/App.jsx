@@ -81,7 +81,14 @@ function App() {
   };
 
   const handleTextChange = (e) => {
-    setText(e.target.value);
+    const newText = e.target.value.slice(0, 10000);
+    setText(newText);
+    setScore(null);
+    setError(null);
+  };
+
+  const handleClearText = () => {
+    setText('');
     setScore(null);
     setError(null);
   };
@@ -97,14 +104,32 @@ function App() {
         </div>
 
         <div className='bg-white rounded-lg shadow-lg p-6'>
-          <textarea
-            className='w-full h-48 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
-            placeholder='Введите текст для анализа...'
-            value={text}
-            onChange={handleTextChange}
-          />
+          <div className='relative'>
+            <textarea
+              className='w-full h-48 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+              placeholder='Введите текст для анализа...'
+              value={text}
+              onChange={handleTextChange}
+              maxLength={10000}
+            />
+            <div className='flex justify-between items-center mt-1'>
+              <div className='text-sm text-gray-500'>{text.length} / 10000 символов</div>
+              <button
+                onClick={handleClearText}
+                disabled={!text.trim()}
+                className={`text-sm px-3 py-1 rounded transition-colors
+                  ${
+                    !text.trim()
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+              >
+                Очистить поле
+              </button>
+            </div>
+          </div>
 
-          <div className='mt-4 flex justify-center space-x-4'>
+          <div className='mt-6 flex justify-center space-x-4'>
             <label
               className={`px-6 py-2 rounded-lg font-medium transition-colors relative group flex items-center space-x-2
               ${loading ? 'text-gray-400 cursor-not-allowed' : 'cursor-pointer text-gray-900 hover:bg-gray-100'}`}

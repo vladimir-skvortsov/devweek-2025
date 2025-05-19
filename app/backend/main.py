@@ -7,7 +7,7 @@ import torch
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, validator
 
 from config import PROJECT_NAME
 from utils import (
@@ -35,13 +35,24 @@ app.add_middleware(
 
 
 class TextRequest(BaseModel):
-    text: str
+    text: str = Field(..., min_length=1, max_length=10000)
+
+    @validator('text')
+    def validate_text_length(cls, v):
+        if len(v.strip()) == 0:
+            raise ValueError('Text cannot be empty')
+        if len(v) > 10000:
+            raise ValueError('Text length cannot exceed 10000 characters')
+        return v
 
 
 @app.post('/api/v1/score/text')
 async def root(request: TextRequest):
-    score = await model.ainvoke({'text': request.text})
-    return {'score': score}
+    try:
+        score = await model.ainvoke({'text': request.text})
+        return {'score': score}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post('/api/v1/score/file')
@@ -72,6 +83,9 @@ async def analyze_file(file: UploadFile = File(...)):
 
         if not text.strip():
             raise HTTPException(status_code=400, detail='No text content found in the file')
+
+        if len(text) > 10000:
+            raise HTTPException(status_code=400, detail='Extracted text length cannot exceed 10000 characters')
 
         score = await model.ainvoke({'text': text})
 
