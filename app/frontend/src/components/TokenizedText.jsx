@@ -2,14 +2,12 @@ import { useState, useMemo } from 'react';
 
 const TokenizedText = ({ text, tokens, onTokenClick }) => {
   const [hoveredToken, setHoveredToken] = useState(null);
-  const SUSPICIOUS_THRESHOLD = 0.6; // Only highlight tokens with AI probability > 60%
+  const SUSPICIOUS_THRESHOLD = 0.6;
 
-  // Function to get color based on AI probability
   const getTokenColor = (aiProb) => {
     if (aiProb < SUSPICIOUS_THRESHOLD) return 'transparent';
-    // Red gradient for suspicious tokens
     const intensity = (aiProb - SUSPICIOUS_THRESHOLD) / (1 - SUSPICIOUS_THRESHOLD);
-    return `rgba(79, 70, 229, ${intensity * 0.5})`; // Red with varying opacity
+    return `rgba(79, 70, 229, ${0.1 + intensity * 0.5})`;
   };
 
   // Function to get text color based on background
@@ -103,7 +101,7 @@ const TokenizedText = ({ text, tokens, onTokenClick }) => {
           return (
             <span
               key={index}
-              className={`inline-block px-0.5 py-0.5 cursor-pointer transition-all duration-200 ${
+              className={`inline-block px-0.5 py-0.5 cursor-pointer ${
                 hoveredToken === tokenIndex ? 'ring-2 ring-[#4F46E5]' : ''
               }`}
               style={{
