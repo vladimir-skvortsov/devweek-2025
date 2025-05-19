@@ -103,7 +103,7 @@ function App() {
           </p>
         </div>
 
-        <div className='bg-white rounded-lg shadow-lg p-6'>
+        <div className='bg-white rounded-xl shadow-lg p-6'>
           <div className='relative'>
             <textarea
               className='w-full min-h-56 h-56 max-h-96 overflow-y-auto p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
