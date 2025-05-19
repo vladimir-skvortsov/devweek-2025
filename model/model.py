@@ -100,10 +100,14 @@ class Model:
         return human_prob
 
     async def _evaluate_chain(self, chain, text: str) -> float:
-        result = await chain.ainvoke({'text': text})
-        score = result.score
-        score = self._clamp(score, 0, 100)
-        return score / 100
+        try:
+            result = await chain.ainvoke({'text': text})
+            score = result.score
+            score = self._clamp(score, 0, 100)
+            return score / 100
+        except Exception as e:
+            print(f'Error evaluating chain: {e}')
+            return 0.5
 
     async def _evaluators(self, state: State) -> State:
         # Get scores from all evaluators
