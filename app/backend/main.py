@@ -3,6 +3,7 @@ import sys
 sys.path.append('../..')
 
 import magic
+import torch
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -21,7 +22,8 @@ from model.model import Model
 load_dotenv()
 
 app = FastAPI(title=PROJECT_NAME)
-model = Model()
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+model = Model(device=device)
 
 app.add_middleware(
     CORSMiddleware,
