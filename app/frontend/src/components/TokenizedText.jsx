@@ -2,19 +2,24 @@ import { useState, useMemo } from 'react';
 
 const TokenizedText = ({ text, tokens, onTokenClick }) => {
   const [hoveredToken, setHoveredToken] = useState(null);
+  const SUSPICIOUS_THRESHOLD = 0.6; // Only highlight tokens with AI probability > 60%
 
   // Function to get color based on AI probability
   const getTokenColor = (aiProb) => {
-    return `rgb(79, 70, 229, ${aiProb / 2})`;
+    if (aiProb < SUSPICIOUS_THRESHOLD) return 'transparent';
+    // Red gradient for suspicious tokens
+    const intensity = (aiProb - SUSPICIOUS_THRESHOLD) / (1 - SUSPICIOUS_THRESHOLD);
+    return `rgba(79, 70, 229, ${intensity * 0.5})`; // Red with varying opacity
   };
 
   // Function to get text color based on background
   const getTextColor = (aiProb) => {
-    return aiProb > 0.5 ? 'text-gray-900' : 'text-gray-800';
+    return aiProb >= SUSPICIOUS_THRESHOLD ? 'text-gray-900' : 'text-gray-800';
   };
 
   // Function to get tooltip text
   const getTooltipText = (token, aiProb) => {
+    if (aiProb < SUSPICIOUS_THRESHOLD) return null;
     const percentage = (aiProb * 100).toFixed(1);
     return `${token}: ${percentage}% вероятность написания ИИ`;
   };
@@ -25,8 +30,8 @@ const TokenizedText = ({ text, tokens, onTokenClick }) => {
     let currentIndex = 0;
 
     tokens.forEach((token, tokenIndex) => {
-      // Skip special tokens
-      if (token.is_special_token) return;
+      // Skip special tokens and non-suspicious tokens
+      if (token.is_special_token || token.ai_prob < SUSPICIOUS_THRESHOLD) return;
 
       // Find the token in the text starting from the current position
       const tokenText = token.token.replace('##', ''); // Remove BERT token prefixes
@@ -93,6 +98,8 @@ const TokenizedText = ({ text, tokens, onTokenClick }) => {
           }
 
           const { token, tokenIndex } = part;
+          const tooltipText = getTooltipText(token.token, token.ai_prob);
+
           return (
             <span
               key={index}
@@ -105,7 +112,7 @@ const TokenizedText = ({ text, tokens, onTokenClick }) => {
               onMouseEnter={() => setHoveredToken(tokenIndex)}
               onMouseLeave={() => setHoveredToken(null)}
               onClick={() => onTokenClick(token)}
-              title={getTooltipText(token.token, token.ai_prob)}
+              title={tooltipText || undefined}
             >
               <span className={getTextColor(token.ai_prob)}>{part.text}</span>
             </span>
