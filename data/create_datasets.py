@@ -55,14 +55,14 @@ datasets = [
     ),
     # Local datasets
     FileProvider(
-        'raw_datasets/ruatd-2022-bi-train.csv',
+        'raw/ruatd-2022-bi-train.csv',
         transform_func=lambda df: df.rename(columns={'Text': 'text'}).assign(
             is_human=lambda x: (x['Class'] == 'H').astype('int64'),
             id=lambda x: [uuid.uuid4().hex for _ in range(len(x))],
         )[['id', 'text', 'is_human']],
     ),
     FileProvider(
-        'raw_datasets/ruatd-2022-bi-val.csv',
+        'raw/ruatd-2022-bi-val.csv',
         transform_func=lambda df: df.rename(columns={'Text': 'text'}).assign(
             is_human=lambda x: (x['Class'] == 'H').astype('int64'),
             id=lambda x: [uuid.uuid4().hex for _ in range(len(x))],
@@ -76,6 +76,7 @@ S3_SAMPLE_PATH = s3_client.get_cache_key('merged_sample')
 
 # Try to download existing datasets from S3
 try:
+    raise Exception('test')
     merged_df = s3_client.download_df(S3_MERGED_PATH)
     sample_df = s3_client.download_df(S3_SAMPLE_PATH)
     print('Successfully downloaded datasets from S3')
