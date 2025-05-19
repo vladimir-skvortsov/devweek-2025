@@ -3,6 +3,7 @@ import uuid
 import pandas as pd
 from dotenv import load_dotenv
 
+from providers import KaggleProvider, HuggingFaceProvider, FileProvider, KaggleCompetitionProvider
 from providers import KaggleProvider, HuggingFaceProvider, FileProvider
 from S3Client import S3Client
 
@@ -39,6 +40,17 @@ datasets = [
         lambda df: df[['text', 'label']].assign(
             is_human=lambda x: 1 - x['label'], id=lambda x: [uuid.uuid4().hex for _ in range(len(x))]
         )[['id', 'text', 'is_human']],
+    ),
+    KaggleCompetitionProvider(
+        'llm-detect-ai-generated-text',
+        'train_essays.csv',
+        lambda df: (
+            df.assign(is_human=lambda x: 1 - x['generated'])
+              .assign(text_clean=lambda x: x['text'].str.replace(r'\s+', ' ', regex=True).str.strip())
+              .drop_duplicates(subset=['text_clean'])
+              .drop(columns=['generated', 'text_clean'])
+              [['id', 'text', 'is_human']]
+        ),
     ),
     # HuggingFace datasets
     HuggingFaceProvider(
@@ -85,18 +97,14 @@ except Exception as e:
 
     # Create datasets locally
     datasets_df = [dataset.get_df() for dataset in datasets]
-    merged_df = pd.concat(datasets_df)
+
+    merged_df = pd.concat(datasets_df, ignore_index=True)
+    merged_df["text_clean"] = merged_df["text"].astype(str).str.replace(r"\s+", " ", regex=True).str.strip()
+    before_merge = len(merged_df)
+    merged_df = merged_df.drop_duplicates(subset=["text_clean"]).drop(columns=["text_clean"]).reset_index(drop=True)
 
     SAMPLE_SIZE = 100
-    share = SAMPLE_SIZE // len(datasets_df)
-    remainder = SAMPLE_SIZE - share * len(datasets_df)
-
-    samples_df = []
-    for i, sample_df in enumerate(datasets_df):
-        n = share + (1 if i < remainder else 0)
-        samples_df.append(sample_df.sample(n=n, random_state=0))
-
-    sample_df = pd.concat(samples_df)
+    sample_df = merged_df.sample(n=SAMPLE_SIZE, random_state=0)
 
     # Upload to S3
     s3_client.upload_df(merged_df, S3_MERGED_PATH)
