@@ -8,6 +8,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, validator
+from typing import List, Dict
 
 from config import PROJECT_NAME
 from utils import (
@@ -16,6 +17,7 @@ from utils import (
     extract_text_from_txt,
     extract_text_from_pptx,
     extract_text_from_image,
+    analyze_text_with_gradcam,
 )
 from model.model import Model
 
@@ -46,16 +48,35 @@ class TextRequest(BaseModel):
         return v
 
 
+class TokenAnalysis(BaseModel):
+    token: str
+    ai_prob: float  # Higher score means more likely to be AI-written
+    is_special_token: bool
+
+
+class ScoreTextResponse(BaseModel):
+    score: float
+    tokens: List[TokenAnalysis]
+
+
 @app.post('/api/v1/score/text')
 async def root(request: TextRequest):
     try:
         score = await model.ainvoke({'text': request.text})
-        return {'score': score}
+        tokens_analysis = analyze_text_with_gradcam(request.text)
+        return {'score': score, 'tokens': tokens_analysis}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.post('/api/v1/score/file')
+class ScoreFileResponse(BaseModel):
+    score: float
+    text: str
+    mime_type: str
+    tokens: List[TokenAnalysis]
+
+
+@app.post('/api/v1/score/file', response_model=ScoreFileResponse)
 async def analyze_file(file: UploadFile = File(...)):
     content = await file.read()
 
@@ -88,8 +109,9 @@ async def analyze_file(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail='Extracted text length cannot exceed 10000 characters')
 
         score = await model.ainvoke({'text': text})
+        tokens_analysis = analyze_text_with_gradcam(text)
 
-        return {'score': score, 'text': text, 'mime_type': mime_type}
+        return {'score': score, 'text': text, 'mime_type': mime_type, 'tokens': tokens_analysis}
     except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail='Invalid text encoding. Please ensure the file is UTF-8 encoded.')
     except ValueError as e:

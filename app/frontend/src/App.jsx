@@ -1,16 +1,20 @@
 import { useState } from 'react';
+import TokenizedText from './components/TokenizedText';
 
 function App() {
   const [text, setText] = useState('');
   const [score, setScore] = useState(null);
+  const [tokens, setTokens] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedToken, setSelectedToken] = useState(null);
 
   const analyzeText = async () => {
     if (!text.trim()) return;
 
     setLoading(true);
     setError(null);
+    setSelectedToken(null);
 
     try {
       const response = await fetch('http://localhost:8000/api/v1/score/text', {
@@ -27,6 +31,7 @@ function App() {
 
       const data = await response.json();
       setScore(data.score);
+      setTokens(data.tokens);
     } catch (err) {
       setError('Failed to analyze text. Please try again.');
       console.error(err);
@@ -41,6 +46,7 @@ function App() {
 
     setLoading(true);
     setError(null);
+    setSelectedToken(null);
 
     try {
       const formData = new FormData();
@@ -58,6 +64,7 @@ function App() {
       const data = await response.json();
       setScore(data.score);
       setText(data.text);
+      setTokens(data.tokens);
     } catch (err) {
       setError('Failed to analyze file. Please try again.');
       console.error(err);
@@ -84,13 +91,21 @@ function App() {
     const newText = e.target.value.slice(0, 10000);
     setText(newText);
     setScore(null);
+    setTokens([]);
     setError(null);
+    setSelectedToken(null);
   };
 
   const handleClearText = () => {
     setText('');
     setScore(null);
+    setTokens([]);
     setError(null);
+    setSelectedToken(null);
+  };
+
+  const handleTokenClick = (token) => {
+    setSelectedToken(token);
   };
 
   return (
@@ -105,13 +120,17 @@ function App() {
 
         <div className='bg-white rounded-xl shadow-lg p-6'>
           <div className='relative'>
-            <textarea
-              className='w-full min-h-56 h-56 max-h-96 overflow-y-auto p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
-              placeholder='Введите текст для анализа...'
-              value={text}
-              onChange={handleTextChange}
-              maxLength={10000}
-            />
+            {tokens.length > 0 ? (
+              <TokenizedText text={text} tokens={tokens} onTokenClick={handleTokenClick} />
+            ) : (
+              <textarea
+                className='w-full min-h-56 h-56 max-h-96 overflow-y-auto p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                placeholder='Введите текст для анализа...'
+                value={text}
+                onChange={handleTextChange}
+                maxLength={10000}
+              />
+            )}
             <div className='flex justify-between items-center mt-1'>
               <div className='text-sm text-gray-500'>{text.length} / 10000 символов</div>
               <button
@@ -128,6 +147,17 @@ function App() {
               </button>
             </div>
           </div>
+
+          {selectedToken && (
+            <div className='mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200'>
+              <div className='text-sm text-gray-600'>
+                <span className='font-medium'>Токен:</span> {selectedToken.token}
+              </div>
+              <div className='text-sm text-gray-600'>
+                <span className='font-medium'>Вероятность ИИ:</span> {(selectedToken.ai_prob * 100).toFixed(1)}%
+              </div>
+            </div>
+          )}
 
           <div className='mt-6 flex justify-center space-x-4'>
             <label

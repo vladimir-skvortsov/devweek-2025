@@ -76,7 +76,6 @@ S3_SAMPLE_PATH = s3_client.get_cache_key('merged_sample')
 
 # Try to download existing datasets from S3
 try:
-    raise Exception('test')
     merged_df = s3_client.download_df(S3_MERGED_PATH)
     sample_df = s3_client.download_df(S3_SAMPLE_PATH)
     print('Successfully downloaded datasets from S3')
