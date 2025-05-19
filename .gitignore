@@ -3,4 +3,6 @@
 __pycache__/
 .idea/
 .vscode
-data/*.csv
+
+data/merged.csv
+data/merged_sample.csv

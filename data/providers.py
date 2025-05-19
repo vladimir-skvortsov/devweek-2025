@@ -16,6 +16,12 @@ class Provider(ABC):
         self.transform_func = transform_func
         self.s3 = S3Client()
 
+    def _universal_transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        df['text'] = df['text'].str.strip()
+        df['text'] = df['text'].str.replace(r'\s+', ' ', regex=True)
+        df = df[df['text'].str.len() >= 20]
+        return df
+
     def get_df(self) -> pd.DataFrame:
         cache_key: str = self.s3.get_cache_key(self.dataset_id)
 
@@ -26,6 +32,7 @@ class Provider(ABC):
         print(f'Downloading and transforming {self.dataset_id}')
         df = self._download()
         df = self.transform_func(df)
+        df = self._universal_transform(df)
 
         # Deduplication
         df["text_clean"] = df["text"].astype(str).str.replace(r"\s+", " ", regex=True).str.strip()
