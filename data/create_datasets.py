@@ -11,12 +11,17 @@ from S3Client import S3Client
 parser = argparse.ArgumentParser(
     prog='create dataset',
     description='Download datasets from kaggle, hf or own S3',
-    epilog='Text at the bottom of help')
+    epilog='Text at the bottom of help',
+)
 
-parser.add_argument('-s', '--use-s3',
-                    action='store_true', help='Download from S3 (if omitted, downloads directly from Kaggle/HF)', default=False)
-parser.add_argument('-u', '--upload-to-s3',
-                    action='store_true', help='Upload datasets to s3', default=False)
+parser.add_argument(
+    '-s',
+    '--use-s3',
+    action='store_true',
+    help='Download from S3 (if omitted, downloads directly from Kaggle/HF)',
+    default=False,
+)
+parser.add_argument('-u', '--upload-to-s3', action='store_true', help='Upload datasets to s3', default=False)
 
 our_namespace = parser.parse_args()
 
@@ -26,6 +31,7 @@ if os.getenv('KAGGLE_USERNAME') and os.getenv('KAGGLE_KEY'):
     os.environ['KAGGLE_USERNAME'] = os.getenv('KAGGLE_USERNAME')
     os.environ['KAGGLE_KEY'] = os.getenv('KAGGLE_KEY')
 
+datasets_name_postfix = ['english', 'russian']
 datasets = [
     # Kaggle datasets
     KaggleProvider(
@@ -59,10 +65,9 @@ datasets = [
         'train_essays.csv',
         lambda df: (
             df.assign(is_human=lambda x: 1 - x['generated'])
-              .assign(text_clean=lambda x: x['text'].str.replace(r'\s+', ' ', regex=True).str.strip())
-              .drop_duplicates(subset=['text_clean'])
-              .drop(columns=['generated', 'text_clean'])
-            [['id', 'text', 'is_human']]
+            .assign(text_clean=lambda x: x['text'].str.replace(r'\s+', ' ', regex=True).str.strip())
+            .drop_duplicates(subset=['text_clean'])
+            .drop(columns=['generated', 'text_clean'])[['id', 'text', 'is_human']]
         ),
     ),
     # HuggingFace datasets
@@ -96,8 +101,10 @@ datasets = [
 ]
 
 s3_client = S3Client()
-S3_MERGED_PATH = s3_client.get_cache_key('merged')
-S3_SAMPLE_PATH = s3_client.get_cache_key('merged_sample')
+merged_name = 'merged'
+merged_sample_name = 'merged_sample'
+S3_MERGED_PATH = s3_client.get_cache_key(merged_name)
+S3_SAMPLE_PATH = s3_client.get_cache_key(merged_sample_name)
 
 merged_df = None
 sample_df = None
@@ -108,12 +115,11 @@ if our_namespace.use_s3:
 else:
     print('Creating datasets locally...')
 
-    datasets_df = [dataset.get_df() for dataset in datasets]    
+    datasets_df = [dataset.get_df(False, our_namespace.use_s3) for dataset in datasets]
     print(sum(len(dataset) for dataset in datasets_df))
     merged_df = pd.concat(datasets_df, ignore_index=True)
-    merged_df = merged_df.drop_duplicates(
-        subset=["text"]).reset_index(drop=True)
-    print(f"{merged_df.size=}", f"{len(merged_df)=}")
+    merged_df = merged_df.drop_duplicates(subset=['text']).reset_index(drop=True)
+    print(f'{merged_df.size=}', f'{len(merged_df)=}')
 
     SAMPLE_SIZE = 100
     sample_df = merged_df.sample(n=SAMPLE_SIZE, random_state=0)
@@ -124,5 +130,5 @@ if our_namespace.upload_to_s3:
     print('Successfully created and uploaded datasets to S3')
 
 # Save locally
-merged_df.to_csv('merged.csv', index=False)
-sample_df.to_csv('merged_sample.csv', index=False)
+merged_df.to_csv(f'{merged_name}.csv', index=False)
+sample_df.to_csv(f'{merged_sample_name}.csv', index=False)

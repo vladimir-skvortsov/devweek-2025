@@ -22,14 +22,17 @@ class Provider(ABC):
         df = df.drop_duplicates(subset=['text_clean']).reset_index(drop=True)
         df['text'] = df['text_clean']
         df = df.drop(columns=['text_clean'])
-        return df[df['text'].str.len() >= 40]
+        return df[df['text'].str.len() >= 80]
 
-    def get_df(self) -> pd.DataFrame:
+    def get_df(self, load_from_s3_flag=False, upload_to_s3_flag=False) -> pd.DataFrame:
         cache_key: str = self.s3.get_cache_key(self.dataset_id)
 
-        if self.s3.exists(cache_key):
-            print(f'Loading {self.dataset_id} from cache')
-            return self.s3.download_df(cache_key)
+        if load_from_s3_flag:
+            if self.s3.exists(cache_key):
+                print(f'Loading {self.dataset_id} from cache')
+                return self.s3.download_df(cache_key)
+            else:
+                raise ValueError('S3 cache key does not exist!')
 
         print(f'Downloading and transforming {self.dataset_id}')
         df = self._download()
@@ -37,8 +40,12 @@ class Provider(ABC):
 
         df = self._filter(df)
 
-        # print(f'Caching {self.dataset_id} {cache_key}')
-        # self.s3.upload_df(df, cache_key)
+        if upload_to_s3_flag:
+            if self.s3.exists(cache_key):
+                print(f'Caching {self.dataset_id} {cache_key}')
+                self.s3.upload_df(df, cache_key)
+            else:
+                raise ValueError('S3 cache key does not exist!')
 
         return df
 
