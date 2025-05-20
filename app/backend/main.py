@@ -116,12 +116,13 @@ async def analyze_file(file: UploadFile = File(...)):
         if len(text) > 10000:
             raise HTTPException(status_code=400, detail='Extracted text length cannot exceed 10000 characters')
 
-        score = await model.ainvoke(text)
+        result = await model.ainvoke(text)
         tokens_analysis = analyze_text_with_gradcam(text)
 
         return {
-            'score': score,
+            'score': result['score'],
             'text': text,
+            'explanation': result['explanation'],
             'mime_type': mime_type,
             'tokens': tokens_analysis,
         }
