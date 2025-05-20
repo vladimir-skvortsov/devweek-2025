@@ -8,3 +8,7 @@ data/merged.csv
 data/merged_sample.csv
 
 model/transformer.pth
+
+merged.csv
+merged_sample.csv
+
