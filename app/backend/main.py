@@ -1,6 +1,8 @@
 import sys
+from pathlib import Path
 
-sys.path.append('../..')
+project_root = str(Path(__file__).parent.parent.parent)
+sys.path.append(project_root)
 
 import magic
 import torch
@@ -8,10 +10,9 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, validator
-from typing import List, Dict
 
-from config import PROJECT_NAME
-from utils import (
+from app.backend.config import PROJECT_NAME
+from app.backend.utils import (
     extract_text_from_docx,
     extract_text_from_pdf,
     extract_text_from_txt,
@@ -56,15 +57,21 @@ class TokenAnalysis(BaseModel):
 
 class ScoreTextResponse(BaseModel):
     score: float
-    tokens: List[TokenAnalysis]
+    tokens: list[TokenAnalysis]
+    explanation: str
 
 
-@app.post('/api/v1/score/text')
+@app.post('/api/v1/score/text', response_model=ScoreTextResponse)
 async def root(request: TextRequest):
     try:
-        score = await model.ainvoke({'text': request.text})
+        result = await model.ainvoke(request.text)
         tokens_analysis = analyze_text_with_gradcam(request.text)
-        return {'score': score, 'tokens': tokens_analysis}
+        return {
+            'score': result['score'],
+            'explanation': result['explanation'],
+            'text': request.text,
+            'tokens': tokens_analysis,
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -73,7 +80,8 @@ class ScoreFileResponse(BaseModel):
     score: float
     text: str
     mime_type: str
-    tokens: List[TokenAnalysis]
+    tokens: list[TokenAnalysis]
+    explanation: str
 
 
 @app.post('/api/v1/score/file', response_model=ScoreFileResponse)
@@ -108,10 +116,16 @@ async def analyze_file(file: UploadFile = File(...)):
         if len(text) > 10000:
             raise HTTPException(status_code=400, detail='Extracted text length cannot exceed 10000 characters')
 
-        score = await model.ainvoke({'text': text})
+        result = await model.ainvoke(text)
         tokens_analysis = analyze_text_with_gradcam(text)
 
-        return {'score': score, 'text': text, 'mime_type': mime_type, 'tokens': tokens_analysis}
+        return {
+            'score': result['score'],
+            'text': text,
+            'explanation': result['explanation'],
+            'mime_type': mime_type,
+            'tokens': tokens_analysis,
+        }
     except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail='Invalid text encoding. Please ensure the file is UTF-8 encoded.')
     except ValueError as e:

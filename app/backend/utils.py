@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import docx
 import PyPDF2
 from io import BytesIO
@@ -67,7 +69,8 @@ def analyze_text_with_gradcam(text: str) -> list[dict[str, float]]:
     model = TransformerClassifier(
         vocab_size=tokenizer.vocab_size, d_model=256, nhead=8, num_layers=6, dim_feedforward=1024, dropout=0.1
     )
-    model.load_state_dict(torch.load('../../model/transformer.pth', map_location=device))
+    path = Path(__file__).resolve().parent.parent.parent / 'model' / 'transformer.pth'
+    model.load_state_dict(torch.load(path, map_location=device))
     model.to(device)
     model.eval()
 

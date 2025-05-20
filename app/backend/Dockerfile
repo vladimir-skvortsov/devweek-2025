@@ -6,13 +6,13 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+ENV PYTHONPATH=/app
 
-COPY app/backend/ ./backend/
-COPY model/ ./model/
+COPY requirements.txt ../../requirements.txt
+RUN pip install --no-cache-dir -r ../../requirements.txt
 
-WORKDIR /app/backend
+COPY . .
+
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "app.backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

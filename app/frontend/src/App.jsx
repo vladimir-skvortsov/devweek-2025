@@ -4,6 +4,7 @@ import TokenizedText from './components/TokenizedText';
 function App() {
   const [text, setText] = useState('');
   const [score, setScore] = useState(null);
+  const [explanation, setExplanation] = useState('');
   const [tokens, setTokens] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -30,7 +31,9 @@ function App() {
       }
 
       const data = await response.json();
+
       setScore(data.score);
+      setExplanation(data.explanation);
       setTokens(data.tokens);
     } catch (err) {
       setError('Failed to analyze text. Please try again.');
@@ -64,6 +67,7 @@ function App() {
       const data = await response.json();
       setScore(data.score);
       setText(data.text);
+      setExplanation(data.explanation);
       setTokens(data.tokens);
     } catch (err) {
       setError('Failed to analyze file. Please try again.');
@@ -92,6 +96,7 @@ function App() {
     setText(newText);
     setScore(null);
     setTokens([]);
+    setExplanation('');
     setError(null);
     setSelectedToken(null);
   };
@@ -100,6 +105,7 @@ function App() {
     setText('');
     setScore(null);
     setTokens([]);
+    setExplanation('');
     setError(null);
     setSelectedToken(null);
   };
@@ -207,6 +213,10 @@ function App() {
                   <span className='text-white text-2xl font-bold'>{(score * 100).toFixed(1)}%</span>
                 </div>
                 <div className='text-lg font-medium text-gray-700'>{getScoreText(score)}</div>
+              </div>
+              <div className='mt-6 bg-white p-6 rounded-lg shadow'>
+                <h2 className='text-xl font-semibold mb-4'>Анализ текста</h2>
+                <p className='text-gray-800 whitespace-pre-line'>{explanation}</p>
               </div>
             </div>
           )}
