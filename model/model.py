@@ -83,9 +83,14 @@ class State(TypedDict):
     explanation: str
 
 
+EVALUATOR_WEIGHTS = {'openai/o4-mini': 0.64, 'anthropic/claude-3.7-sonnet': 0.60, 'transformer': 0.72}
+NORMALIZED_WEIGHTS = [w / sum(EVALUATOR_WEIGHTS.values()) for w in EVALUATOR_WEIGHTS.values()]
+
+
 class Model:
     def __init__(self, device='cpu'):
         self.device = device
+
         self.transformer = TransformerClassifier(vocab_size=tokenizer.vocab_size)
         self.transformer.load_state_dict(
             torch.load(Path(__file__).with_name('transformer.pth'), map_location=self.device)
@@ -142,10 +147,14 @@ class Model:
         return human_prob
 
     async def _evaluate_chain(self, chain, text: str) -> float:
-        result = await chain.ainvoke({'text': text})
-        score = result.score
-        score = self._clamp(score, 0, 100)
-        return score / 100
+        try:
+            result = await chain.ainvoke(text)
+            score = result.score
+            score = self._clamp(score, 0, 100)
+            return score / 100
+        except Exception as e:
+            print(f'Error evaluating chain: {e}')
+            return 0.5
 
     async def _evaluators(self, state: State) -> State:
         # Get scores from all evaluators
@@ -164,8 +173,8 @@ class Model:
         return {'intermediate_scores': scores}
 
     def _aggregator(self, state: State) -> State:
-        score = sum(state['intermediate_scores']) / len(state['intermediate_scores'])
-        return {'score': score}
+        weighted_sum = sum(score * weight for score, weight in zip(state['intermediate_scores'], NORMALIZED_WEIGHTS))
+        return {'score': weighted_sum}
 
     async def _explanation(self, state: State) -> State:
         prompt_values = {'text': state['text'], 'score': round(state['score'] * 100, 1)}

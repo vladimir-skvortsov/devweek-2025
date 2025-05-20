@@ -8,6 +8,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, validator
+from typing import List, Dict
 
 from config import PROJECT_NAME
 from utils import (
@@ -16,16 +17,16 @@ from utils import (
     extract_text_from_txt,
     extract_text_from_pptx,
     extract_text_from_image,
+    analyze_text_with_gradcam,
 )
 from model.model import Model
-from model.utils.OpenRouter import OpenRouter
-import json
+
 load_dotenv()
 
 app = FastAPI(title=PROJECT_NAME)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model = Model(device=device)
-chat = OpenRouter(model_name='openai/o4-mini', temperature=0.7)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
@@ -47,16 +48,41 @@ class TextRequest(BaseModel):
         return v
 
 
-@app.post('/api/v1/score/text')
+class TokenAnalysis(BaseModel):
+    token: str
+    ai_prob: float  # Higher score means more likely to be AI-written
+    is_special_token: bool
+
+
+class ScoreTextResponse(BaseModel):
+    score: float
+    tokens: List[TokenAnalysis]
+    explanation: str
+
+
+@app.post('/api/v1/score/text', response_model=ScoreTextResponse)
 async def root(request: TextRequest):
     try:
         result = await model.ainvoke(request.text)
-        return {'score': result['score'], 'explanation': result['explanation']}
+        tokens_analysis = analyze_text_with_gradcam(request.text)
+        return {
+            'score': result['score'],
+            'explanation': result['explanation'],
+            'text': request.text, 'tokens': tokens_analysis
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.post('/api/v1/score/file')
+class ScoreFileResponse(BaseModel):
+    score: float
+    text: str
+    mime_type: str
+    tokens: List[TokenAnalysis]
+    explanation: str
+
+
+@app.post('/api/v1/score/file', response_model=ScoreFileResponse)
 async def analyze_file(file: UploadFile = File(...)):
     content = await file.read()
 
@@ -89,11 +115,18 @@ async def analyze_file(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail='Extracted text length cannot exceed 10000 characters')
 
         score = await model.ainvoke({'text': text})
+        tokens_analysis = analyze_text_with_gradcam(text)
 
-        return {'score': score, 'text': text, 'mime_type': mime_type}
+        return {'score': score, 'text': text, 'mime_type': mime_type, 'tokens': tokens_analysis}
     except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail='Invalid text encoding. Please ensure the file is UTF-8 encoded.')
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'Error processing file: {str(e)}')
+
+
+if __name__ == '__main__':
+    import uvicorn
+
+    uvicorn.run(app, host='0.0.0.0', port=8000)
