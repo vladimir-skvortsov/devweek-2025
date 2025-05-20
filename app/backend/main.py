@@ -1,6 +1,8 @@
 import sys
+from pathlib import Path
 
-sys.path.append('../..')
+project_root = str(Path(__file__).parent.parent.parent)
+sys.path.append(project_root)
 
 import magic
 import torch
@@ -9,8 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, validator
 
-from config import PROJECT_NAME
-from utils import (
+from app.backend.config import PROJECT_NAME
+from app.backend.utils import (
     extract_text_from_docx,
     extract_text_from_pdf,
     extract_text_from_txt,
