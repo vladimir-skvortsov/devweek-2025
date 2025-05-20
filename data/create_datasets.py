@@ -128,3 +128,5 @@ if our_namespace.upload_to_s3:
 # Save locally
 merged_df.to_csv('merged.csv', index=False)
 sample_df.to_csv('merged_sample.csv', index=False)
+
+print(f'Dataframe size: {len(merged_df)}')
