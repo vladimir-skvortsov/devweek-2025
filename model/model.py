@@ -51,7 +51,7 @@ The detector has assigned the following input text a human-likeness score of {sc
 {text}
 === End Input Text ===
 
-Please provide a single, comprehensive explanation—of at least 150 words—describing exactly why the model evaluated 
+Please provide a single, comprehensive explanation—of at least 150 words—describing exactly why the model evaluated
 this text this way.
 Focus on the internal criteria of the neural detector, such as:
 - Vocabulary richness (diversity of words, rare/idiomatic expressions)
@@ -60,7 +60,7 @@ Focus on the internal criteria of the neural detector, such as:
 - Stylistic markers (tone, personalization, emotional nuance)
 - Repetitive or templated phrasing indicative of AI output
 
-**Answer in Russian.**  
+**Answer in Russian.**
 **Format the explanation into clear paragraphs**, using an empty line to separate each paragraph.
 
 Return strictly a JSON object in this exact format:
@@ -190,5 +190,4 @@ class Model:
             return {'explanation': text_resp}
 
     async def ainvoke(self, text: str) -> float:
-        init_state = {'text': text}
-        return await self.model.ainvoke(init_state)
+        return await self.model.ainvoke({'text': text})

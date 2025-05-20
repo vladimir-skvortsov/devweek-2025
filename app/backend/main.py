@@ -8,7 +8,6 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, validator
-from typing import List, Dict
 
 from config import PROJECT_NAME
 from utils import (
@@ -56,7 +55,7 @@ class TokenAnalysis(BaseModel):
 
 class ScoreTextResponse(BaseModel):
     score: float
-    tokens: List[TokenAnalysis]
+    tokens: list[TokenAnalysis]
     explanation: str
 
 
@@ -68,7 +67,8 @@ async def root(request: TextRequest):
         return {
             'score': result['score'],
             'explanation': result['explanation'],
-            'text': request.text, 'tokens': tokens_analysis
+            'text': request.text,
+            'tokens': tokens_analysis,
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -78,7 +78,7 @@ class ScoreFileResponse(BaseModel):
     score: float
     text: str
     mime_type: str
-    tokens: List[TokenAnalysis]
+    tokens: list[TokenAnalysis]
     explanation: str
 
 
@@ -114,10 +114,15 @@ async def analyze_file(file: UploadFile = File(...)):
         if len(text) > 10000:
             raise HTTPException(status_code=400, detail='Extracted text length cannot exceed 10000 characters')
 
-        score = await model.ainvoke({'text': text})
+        score = await model.ainvoke(text)
         tokens_analysis = analyze_text_with_gradcam(text)
 
-        return {'score': score, 'text': text, 'mime_type': mime_type, 'tokens': tokens_analysis}
+        return {
+            'score': score,
+            'text': text,
+            'mime_type': mime_type,
+            'tokens': tokens_analysis,
+        }
     except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail='Invalid text encoding. Please ensure the file is UTF-8 encoded.')
     except ValueError as e:

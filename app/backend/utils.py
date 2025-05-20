@@ -69,11 +69,7 @@ def analyze_text_with_gradcam(text: str) -> list[dict[str, float]]:
     model = TransformerClassifier(
         vocab_size=tokenizer.vocab_size, d_model=256, nhead=8, num_layers=6, dim_feedforward=1024, dropout=0.1
     )
-    path = (
-            Path(__file__).resolve().parent.parent
-            / 'model'
-            / 'transformer.pth'
-    )
+    path = Path(__file__).resolve().parent.parent.parent / 'model' / 'transformer.pth'
     model.load_state_dict(torch.load(path, map_location=device))
     model.to(device)
     model.eval()
