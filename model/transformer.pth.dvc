@@ -1,0 +1,5 @@
+outs:
+- md5: 185ea2392ea5fd3277033473904bf6b0
+  size: 50503970
+  hash: md5
+  path: transformer.pth
