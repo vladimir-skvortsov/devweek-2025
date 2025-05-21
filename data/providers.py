@@ -22,7 +22,7 @@ class Provider(ABC):
         df = df.drop_duplicates(subset=['text_clean']).reset_index(drop=True)
         df['text'] = df['text_clean']
         df = df.drop(columns=['text_clean'])
-        return df[df['text'].str.len() >= 40]
+        return df[df['text'].str.len() >= 80]
 
     def get_df(self) -> pd.DataFrame:
         cache_key: str = self.s3.get_cache_key(self.dataset_id)
@@ -37,8 +37,8 @@ class Provider(ABC):
 
         df = self._filter(df)
 
-        # print(f'Caching {self.dataset_id} {cache_key}')
-        # self.s3.upload_df(df, cache_key)
+        print(f'Caching {self.dataset_id} {cache_key}')
+        self.s3.upload_df(df, cache_key)
 
         return df
 
@@ -48,17 +48,26 @@ class Provider(ABC):
 
 
 class KaggleProvider(Provider):
-    def __init__(self, dataset_id: str, transform_func: Callable[[pd.DataFrame], pd.DataFrame]):
+    def __init__(self, dataset_id: str, files: list[str], transform_func: Callable[[pd.DataFrame], pd.DataFrame]):
         super().__init__(f'kaggle_{dataset_id}', transform_func)
         self.dataset_id = dataset_id
+        self.files = files
 
     def _download(self) -> pd.DataFrame:
         path = kagglehub.dataset_download(self.dataset_id)
-        files = os.listdir(path)
-        csv_files = [f for f in files if f.endswith('.csv')]
-        if not csv_files:
-            raise Exception(f'No CSV files found in {self.dataset_id}')
-        return pd.read_csv(os.path.join(path, csv_files[0]))
+        available_files = os.listdir(path)
+        csv_files = [f for f in available_files if f.endswith('.csv')]
+
+        # Find intersection of requested files and available CSV files
+        matching_files = [f for f in self.files if f in csv_files]
+        if not matching_files:
+            raise Exception(
+                f'None of the requested files {self.files} found in {self.dataset_id}. Available files: {csv_files}'
+            )
+
+        # Read and concatenate all matching files
+        dfs = [pd.read_csv(os.path.join(path, f)) for f in matching_files]
+        return pd.concat(dfs, ignore_index=True)
 
 
 class KaggleCompetitionProvider(Provider):
