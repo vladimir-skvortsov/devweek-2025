@@ -34,29 +34,55 @@ datasets = [
     # Kaggle datasets
     KaggleProvider(
         'sunilthite/llm-detect-ai-generated-text-dataset',
+        ['Training_Essay_Data.csv'],
         lambda df: df[['text', 'generated']].assign(
-            is_human=lambda x: 1 - x['generated'], id=lambda x: [uuid.uuid4().hex for _ in range(len(x))]
-        )[['id', 'text', 'is_human']],
+            is_human=lambda x: 1 - x['generated'],
+            id=lambda x: [uuid.uuid4().hex for _ in range(len(x))],
+            lang=lambda x: ['en'] * len(x),
+        )[['id', 'text', 'is_human', 'lang']],
     ),
     KaggleProvider(
         'prajwaldongre/llm-detect-ai-generated-vs-student-generated-text',
+        ['LLM.csv'],
         lambda df: df[['Text', 'Label']].assign(
             is_human=lambda x: (x['Label'] == 'student').astype('int64'),
             text=lambda x: x['Text'],
             id=lambda x: [uuid.uuid4().hex for _ in range(len(x))],
-        )[['id', 'text', 'is_human']],
+            lang=lambda x: ['en'] * len(x),
+        )[['id', 'text', 'is_human', 'lang']],
     ),
     KaggleProvider(
         'thedrcat/daigt-v4-train-dataset',
+        ['daigt_magic_generations.csv', 'train_v4_drcat_01.csv'],
         lambda df: df[['text', 'label']].assign(
-            is_human=lambda x: 1 - x['label'], id=lambda x: [uuid.uuid4().hex for _ in range(len(x))]
-        )[['id', 'text', 'is_human']],
+            is_human=lambda x: 1 - x['label'],
+            id=lambda x: [uuid.uuid4().hex for _ in range(len(x))],
+            lang=lambda x: ['en'] * len(x),
+        )[['id', 'text', 'is_human', 'lang']],
     ),
     KaggleProvider(
         'carlmcbrideellis/llm-7-prompt-training-dataset',
+        [
+            'train_essays_RDizzl3_seven_v1.csv',
+            'train_essays_RDizzl3_seven_v2.csv',
+            'train_essays_7_prompts.csv',
+            'train_essays_7_prompts_v2.csv',
+        ],
         lambda df: df[['text', 'label']].assign(
-            is_human=lambda x: 1 - x['label'], id=lambda x: [uuid.uuid4().hex for _ in range(len(x))]
-        )[['id', 'text', 'is_human']],
+            is_human=lambda x: 1 - x['label'],
+            id=lambda x: [uuid.uuid4().hex for _ in range(len(x))],
+            lang=lambda x: ['en'] * len(x),
+        )[['id', 'text', 'is_human', 'lang']],
+    ),
+    KaggleProvider(
+        'starblasters8/human-vs-llm-text-corpus',
+        ['data.csv'],
+        lambda df: df[df['source'] != 'Unknown'][['text', 'source']].assign(
+            text=lambda x: x['text'],
+            is_human=lambda x: (x['source'] == 'Human').astype('int64'),
+            id=lambda x: [uuid.uuid4().hex for _ in range(len(x))],
+            lang=lambda x: ['en'] * len(x),
+        )[['id', 'text', 'is_human', 'lang']],
     ),
     KaggleCompetitionProvider(
         'llm-detect-ai-generated-text',
@@ -65,21 +91,25 @@ datasets = [
             df.assign(is_human=lambda x: 1 - x['generated'])
             .assign(text_clean=lambda x: x['text'].str.replace(r'\s+', ' ', regex=True).str.strip())
             .drop_duplicates(subset=['text_clean'])
-            .drop(columns=['generated', 'text_clean'])[['id', 'text', 'is_human']]
+            .drop(columns=['generated', 'text_clean'])[['id', 'text', 'is_human', 'lang']]
         ),
     ),
     # HuggingFace datasets
     HuggingFaceProvider(
         'shahxeebhassan/human_vs_ai_sentences',
-        lambda df: df.assign(is_human=lambda x: 1 - x['label'], id=lambda x: [uuid.uuid4().hex for _ in range(len(x))])[
-            ['id', 'text', 'is_human']
-        ],
+        lambda df: df.assign(
+            is_human=lambda x: 1 - x['label'],
+            id=lambda x: [uuid.uuid4().hex for _ in range(len(x))],
+            lang=lambda x: ['en'] * len(x),
+        )[['id', 'text', 'is_human', 'lang']],
     ),
     HuggingFaceProvider(
         'ardavey/human-ai-generated-text',
-        lambda df: df.assign(is_human=lambda x: 1 - x['label'], id=lambda x: [uuid.uuid4().hex for _ in range(len(x))])[
-            ['id', 'text', 'is_human']
-        ],
+        lambda df: df.assign(
+            is_human=lambda x: 1 - x['label'],
+            id=lambda x: [uuid.uuid4().hex for _ in range(len(x))],
+            lang=lambda x: ['en'] * len(x),
+        )[['id', 'text', 'is_human', 'lang']],
     ),
     # Local datasets
     FileProvider(
@@ -87,14 +117,24 @@ datasets = [
         transform_func=lambda df: df.rename(columns={'Text': 'text'}).assign(
             is_human=lambda x: (x['Class'] == 'H').astype('int64'),
             id=lambda x: [uuid.uuid4().hex for _ in range(len(x))],
-        )[['id', 'text', 'is_human']],
+            lang=lambda x: ['ru'] * len(x),
+        )[['id', 'text', 'is_human', 'lang']],
     ),
     FileProvider(
         'raw/ruatd-2022-bi-val.csv',
         transform_func=lambda df: df.rename(columns={'Text': 'text'}).assign(
             is_human=lambda x: (x['Class'] == 'H').astype('int64'),
             id=lambda x: [uuid.uuid4().hex for _ in range(len(x))],
-        )[['id', 'text', 'is_human']],
+            lang=lambda x: ['ru'] * len(x),
+        )[['id', 'text', 'is_human', 'lang']],
+    ),
+    FileProvider(
+        'raw/generated.csv',
+        transform_func=lambda df: df.rename(columns={'Text': 'text'}).assign(
+            id=lambda x: [uuid.uuid4().hex for _ in range(len(x))],
+            is_human=lambda x: x['is_human'],
+            lang=lambda x: x['language'].map({'english': 'en', 'russian': 'ru'}),
+        )[['id', 'text', 'is_human', 'lang']],
     ),
 ]
 
@@ -128,3 +168,5 @@ if our_namespace.upload_to_s3:
 # Save locally
 merged_df.to_csv('merged.csv', index=False)
 sample_df.to_csv('merged_sample.csv', index=False)
+
+print(f'Dataframe size: {len(merged_df)}')
