@@ -12,7 +12,6 @@ load_dotenv()
 class AirtableClient:
     def __init__(self):
         self.token = os.getenv('AIRTABLE_TOKEN')
-        print(self.token)
         self.base_id = 'appBdrOMH7UmeXVyA'
         self.records_table = Table(self.token, self.base_id, 'Records')
         self.users_table = Table(self.token, self.base_id, 'Users')
@@ -60,7 +59,7 @@ class AirtableClient:
     def get_record_by_id(self, record_id: str) -> Optional[Dict]:
         records = self.records_table.all()
         for record in records:
-            if record['fields'].get('record_id') == record_id:
+            if record.get('id') == record_id:
                 return self._normalize_record(record)
         return None
 

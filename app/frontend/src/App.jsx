@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import TokenizedText from './components/TokenizedText';
+import { useSearchParams } from 'react-router-dom';
 
 function App() {
+  const [searchParams] = useSearchParams();
   const [text, setText] = useState('');
   const [score, setScore] = useState(null);
   const [explanation, setExplanation] = useState('');
@@ -10,7 +12,72 @@ function App() {
   const [error, setError] = useState(null);
   const [selectedToken, setSelectedToken] = useState(null);
   const [examples, setExamples] = useState('');
+  const [shareLink, setShareLink] = useState('');
+  const [shareLoading, setShareLoading] = useState(false);
 
+  useEffect(() => {
+    const sharedId = searchParams.get('id');
+    if (sharedId) {
+      fetchSharedData(sharedId);
+    }
+  }, [searchParams]);
+
+  const fetchSharedData = async (id) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/text/get?id=${id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch shared data');
+      }
+      const data = await response.json();
+      setText(data.text);
+      setScore(data.score);
+      setExplanation(data.explanation);
+      setTokens(data.tokens);
+      setExamples(data.examples);
+    } catch (err) {
+      setError('Failed to load shared data. Please try again.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!text.trim() || score === null) return;
+
+    setShareLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/text/share', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text,
+          score,
+          explanation,
+          tokens,
+          examples,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to share text');
+      }
+
+      const data = await response.json();
+      const shareUrl = `${window.location.origin}${window.location.pathname}?id=${data.id}`;
+      setShareLink(shareUrl);
+    } catch (err) {
+      setError('Failed to share text. Please try again.');
+      console.error(err);
+    } finally {
+      setShareLoading(false);
+    }
+  };
 
   const analyzeText = async () => {
     if (!text.trim()) return;
@@ -38,7 +105,6 @@ function App() {
       setExplanation(data.explanation);
       setTokens(data.tokens);
       setExamples(data.examples);
-
     } catch (err) {
       setError('Failed to analyze text. Please try again.');
       console.error(err);
@@ -74,7 +140,6 @@ function App() {
       setExplanation(data.explanation);
       setTokens(data.tokens);
       setExamples(data.examples);
-
     } catch (err) {
       setError('Failed to analyze file. Please try again.');
       console.error(err);
@@ -103,7 +168,7 @@ function App() {
     setScore(null);
     setTokens([]);
     setExplanation('');
-    setExamples('')
+    setExamples('');
     setError(null);
     setSelectedToken(null);
   };
@@ -113,7 +178,7 @@ function App() {
     setScore(null);
     setTokens([]);
     setExplanation('');
-    setExamples('')
+    setExamples('');
     setError(null);
     setSelectedToken(null);
   };
@@ -126,7 +191,7 @@ function App() {
     <div className='min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8'>
       <div className='max-w-3xl mx-auto'>
         <div className='text-center mb-8'>
-          <h1 className='text-3xl font-bold text-gray-900 mb-2'>AI Text Detector</h1>
+          <h1 className='text-3xl font-bold text-gray-900 mb-2'>Детектор текста ИИ</h1>
           <p className='text-gray-600'>
             Введите текст или загрузите файл, чтобы определить, написан ли он ИИ или человеком
           </p>
@@ -222,13 +287,47 @@ function App() {
                 </div>
                 <div className='text-lg font-medium text-gray-700'>{getScoreText(score)}</div>
               </div>
+              <div className='mt-4 flex justify-center'>
+                <button
+                  onClick={handleShare}
+                  disabled={shareLoading}
+                  className={`px-4 py-2 rounded-lg font-medium text-white transition-colors flex items-center space-x-2
+                    ${shareLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#4F46E5] hover:bg-[#6a63e9]'}`}
+                >
+                  <svg xmlns='http://www.w3.org/2000/svg' className='h-5 w-5' viewBox='0 0 20 20' fill='currentColor'>
+                    <path d='M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z' />
+                  </svg>
+                  <span>{shareLoading ? 'Поделиться...' : 'Поделиться анализом'}</span>
+                </button>
+              </div>
+              {shareLink && (
+                <div className='mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200'>
+                  <div className='text-sm text-gray-600 mb-2'>Ссылка для просмотра:</div>
+                  <div className='flex items-center space-x-2'>
+                    <input
+                      type='text'
+                      value={shareLink}
+                      readOnly
+                      className='flex-1 p-2 border border-gray-300 rounded-lg bg-white text-sm'
+                    />
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(shareLink);
+                      }}
+                      className='px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors'
+                    >
+                      Копировать
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className='mt-6 bg-white p-6 rounded-lg shadow'>
                 <h2 className='text-xl font-semibold mb-4'>Анализ текста</h2>
                 <p className='text-gray-800 whitespace-pre-line'>{explanation}</p>
               </div>
-              <div className="mt-6 bg-white p-6 rounded-lg shadow">
-                <h2 className="text-xl font-semibold mb-4">Рекомендации</h2>
-                <p className="text-gray-800 whitespace-pre-line">{examples}</p>
+              <div className='mt-6 bg-white p-6 rounded-lg shadow'>
+                <h2 className='text-xl font-semibold mb-4'>Рекомендации</h2>
+                <p className='text-gray-800 whitespace-pre-line'>{examples}</p>
               </div>
             </div>
           )}

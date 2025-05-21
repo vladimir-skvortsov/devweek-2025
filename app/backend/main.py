@@ -68,10 +68,6 @@ async def root(request: TextRequest):
     try:
         result = await model.ainvoke(request.text)
 
-        db.create_record(
-            request.text, result['tokens'], result['explanation'], result['score'], result['examples']
-        )
-
         return {
             'score': result['score'],
             'explanation': result['explanation'],
@@ -144,20 +140,52 @@ async def analyze_file(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f'Error processing file: {str(e)}')
 
 
-@app.get('/api/v1/record/last')
-def get_last_record_url():
-    record = db.get_last_record()
-    if not record:
-        raise HTTPException(status_code=404, detail='No records found')
-    return {'url': f'http://localhost:4173/record/{record["record_id"]}'}
+class ShareRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=10000)
+    score: float
+    tokens: list[TokenAnalysis]
+    explanation: str
+    examples: str
+
+    @validator('text')
+    def validate_text_length(cls, v):
+        if len(v.strip()) == 0:
+            raise ValueError('Text cannot be empty')
+        if len(v) > 10000:
+            raise ValueError('Text length cannot exceed 10000 characters')
+        return v
 
 
-@app.get('/api/v1/record/{record_id}')
-def get_record_by_id(record_id: str):
-    record = db.get_record_by_id(record_id)
+@app.post('/api/v1/text/share')
+async def share_text(request: ShareRequest):
+    tokens_dict = [token.dict() for token in request.tokens]
+
+    record = db.create_record(
+        request.text,
+        tokens_dict,
+        request.explanation,
+        request.score,
+        request.examples,
+    )
+    print('record', record)
+
+    return {'id': record['id']}
+
+
+@app.get('/api/v1/text/get')
+async def get_shared_text(id: str):
+    print('record_id', id)
+    record = db.get_record_by_id(id)
     if not record:
         raise HTTPException(status_code=404, detail='Record not found')
-    return record
+
+    return {
+        'text': record['text'],
+        'score': record['score'],
+        'explanation': record['explanation'],
+        'tokens': record['tokens'],
+        'examples': record['examples'],
+    }
 
 
 if __name__ == '__main__':
