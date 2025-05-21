@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Header from './components/Header';
 import TextInput from './components/TextInput';
@@ -18,14 +18,7 @@ function App() {
   const [shareLink, setShareLink] = useState('');
   const [shareLoading, setShareLoading] = useState(false);
 
-  useEffect(() => {
-    const sharedId = searchParams.get('id');
-    if (sharedId) {
-      fetchSharedData(sharedId);
-    }
-  }, [searchParams]);
-
-  const fetchSharedData = async (id) => {
+  const fetchSharedData = useCallback(async (id) => {
     setLoading(true);
     setError(null);
     try {
@@ -45,9 +38,16 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleShare = async () => {
+  useEffect(() => {
+    const sharedId = searchParams.get('id');
+    if (sharedId) {
+      fetchSharedData(sharedId);
+    }
+  }, [searchParams, fetchSharedData]);
+
+  const handleShare = useCallback(async () => {
     if (!text.trim() || score === null) return;
 
     setShareLoading(true);
@@ -80,9 +80,9 @@ function App() {
     } finally {
       setShareLoading(false);
     }
-  };
+  }, [text, score, explanation, tokens, examples]);
 
-  const analyzeText = async () => {
+  const analyzeText = useCallback(async () => {
     if (!text.trim()) return;
 
     setLoading(true);
@@ -114,9 +114,9 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [text]);
 
-  const handleFileUpload = async (event) => {
+  const handleFileUpload = useCallback(async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -149,9 +149,9 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleTextChange = (e) => {
+  const handleTextChange = useCallback((e) => {
     const newText = e.target.value.slice(0, 10000);
     setText(newText);
     setScore(null);
@@ -160,9 +160,9 @@ function App() {
     setExamples('');
     setError(null);
     setSelectedToken(null);
-  };
+  }, []);
 
-  const handleClearText = () => {
+  const handleClearText = useCallback(() => {
     setText('');
     setScore(null);
     setTokens([]);
@@ -170,11 +170,38 @@ function App() {
     setExamples('');
     setError(null);
     setSelectedToken(null);
-  };
+  }, []);
 
-  const handleTokenClick = (token) => {
+  const handleTokenClick = useCallback((token) => {
     setSelectedToken(token);
-  };
+  }, []);
+
+  const textInputProps = useMemo(
+    () => ({
+      text,
+      tokens,
+      loading,
+      onTextChange: handleTextChange,
+      onClearText: handleClearText,
+      onFileUpload: handleFileUpload,
+      onTokenClick: handleTokenClick,
+      onAnalyze: analyzeText,
+    }),
+    [text, tokens, loading, handleTextChange, handleClearText, handleFileUpload, handleTokenClick, analyzeText]
+  );
+
+  const analysisResultProps = useMemo(
+    () => ({
+      score,
+      explanation,
+      examples,
+      tokens,
+      shareLink,
+      shareLoading,
+      onShare: handleShare,
+    }),
+    [score, explanation, examples, tokens, shareLink, shareLoading, handleShare]
+  );
 
   return (
     <div className='min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8'>
@@ -182,30 +209,13 @@ function App() {
         <Header />
 
         <div className='bg-white rounded-xl shadow-lg p-6'>
-          <TextInput
-            text={text}
-            tokens={tokens}
-            loading={loading}
-            onTextChange={handleTextChange}
-            onClearText={handleClearText}
-            onFileUpload={handleFileUpload}
-            onTokenClick={handleTokenClick}
-            onAnalyze={analyzeText}
-          />
+          <TextInput {...textInputProps} />
 
           <TokenInfo selectedToken={selectedToken} />
 
           {error && <div className='mt-4 text-red-600 text-center'>{error}</div>}
 
-          <AnalysisResult
-            score={score}
-            explanation={explanation}
-            examples={examples}
-            tokens={tokens}
-            shareLink={shareLink}
-            shareLoading={shareLoading}
-            onShare={handleShare}
-          />
+          <AnalysisResult {...analysisResultProps} />
         </div>
       </div>
     </div>
