@@ -1,10 +1,11 @@
 
+from io import BytesIO
+
 import docx
 import PyPDF2
-from io import BytesIO
-from pptx import Presentation
 import pytesseract
 from PIL import Image
+from pptx import Presentation
 
 
 def extract_text_from_txt(content: bytes) -> str:

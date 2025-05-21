@@ -1,7 +1,7 @@
+import json
 import os
 import uuid
-import json
-from typing import Optional, List, Dict
+from typing import Dict, List, Optional
 
 from dotenv import load_dotenv
 from pyairtable import Table
@@ -59,7 +59,7 @@ class AirtableClient:
     def get_record_by_id(self, record_id: str) -> Optional[Dict]:
         records = self.records_table.all()
         for record in records:
-            if record.get('id') == record_id:
+            if record['fields'].get('record_id') == record_id:
                 return self._normalize_record(record)
         return None
 
