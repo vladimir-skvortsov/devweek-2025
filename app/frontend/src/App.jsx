@@ -17,10 +17,12 @@ function App() {
   const [examples, setExamples] = useState('');
   const [shareLink, setShareLink] = useState('');
   const [shareLoading, setShareLoading] = useState(false);
+  const [isSharedContent, setIsSharedContent] = useState(false);
 
   const fetchSharedData = useCallback(async (id) => {
     setLoading(true);
     setError(null);
+    setIsSharedContent(true);
     try {
       const response = await fetch(`http://localhost:8000/api/v1/text/get?id=${id}`);
       if (!response.ok) {
@@ -160,6 +162,7 @@ function App() {
     setExamples('');
     setError(null);
     setSelectedToken(null);
+    setIsSharedContent(false);
   }, []);
 
   const handleClearText = useCallback(() => {
@@ -170,6 +173,7 @@ function App() {
     setExamples('');
     setError(null);
     setSelectedToken(null);
+    setIsSharedContent(false);
   }, []);
 
   const handleTokenClick = useCallback((token) => {
@@ -199,8 +203,9 @@ function App() {
       shareLink,
       shareLoading,
       onShare: handleShare,
+      isSharedContent,
     }),
-    [score, explanation, examples, tokens, shareLink, shareLoading, handleShare]
+    [score, explanation, examples, tokens, shareLink, shareLoading, handleShare, isSharedContent]
   );
 
   return (

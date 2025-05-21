@@ -1,7 +1,16 @@
 import { useMemo, useCallback } from 'react';
 import ShareLink from './ShareLink';
 
-export default function AnalysisResult({ score, explanation, examples, tokens, shareLink, shareLoading, onShare }) {
+export default function AnalysisResult({
+  score,
+  explanation,
+  examples,
+  tokens,
+  shareLink,
+  shareLoading,
+  onShare,
+  isSharedContent,
+}) {
   const getScoreColor = useCallback((score) => {
     if (score === null) return 'bg-gray-200';
     if (score < 0.3) return 'bg-red-500';
@@ -26,8 +35,9 @@ export default function AnalysisResult({ score, explanation, examples, tokens, s
       shareLoading,
       onShare,
       disabled: !tokens.length,
+      isSharedContent,
     }),
-    [shareLink, shareLoading, onShare, tokens.length]
+    [shareLink, shareLoading, onShare, tokens.length, isSharedContent]
   );
 
   if (score === null) return null;
@@ -41,7 +51,7 @@ export default function AnalysisResult({ score, explanation, examples, tokens, s
         <div className='text-lg font-medium text-gray-700'>{scoreText}</div>
       </div>
 
-      <ShareLink {...shareLinkProps} />
+      {!isSharedContent && <ShareLink {...shareLinkProps} />}
 
       <div className='mt-6 bg-white p-6 rounded-lg shadow-lg'>
         <h2 className='text-xl font-semibold mb-4'>Анализ текста</h2>
