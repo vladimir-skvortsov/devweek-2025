@@ -28,6 +28,14 @@ class ExplanationSchema(BaseModel):
     explanation: str = Field(..., description='Detailed analysis of why the detector scored this way')
 
 
+class SuggestionsSchema(BaseModel):
+    examples: str = Field(
+        ...,
+        description='Recommendations in Russian with examples'
+                    ' of token fixes and suggestions to enhance humanity'
+    )
+
+
 evaluator_template = """
 Analyze the provided text and return a score from 0 to 100, where:
 0 = Definitely AI-written,
@@ -44,7 +52,6 @@ evaluator_prompt = PromptTemplate(
     input_variables=['text'],
     partial_variables={'format_instructions': evaluator_parser.get_format_instructions()},
 )
-
 
 explanation_template = """
 You are an expert interpreter of AI Text Detector outputs.
@@ -79,12 +86,47 @@ explanation_prompt = PromptTemplate(
 )
 
 
+suggestions_template = """
+You are a text refinement assistant specialized in improving the human-likeness of AI-detected text.
+Input:
+- A human-likeness score: {score}%
+- A detailed explanation in Russian: {explanation}
+- A JSON list of tokens with their influence scores: {tokens}
+
+Footnote: before each token name itself, write the word “Token” in Russian.
+
+Your task is to provide recommendations in Russian, logically separated into paragraphs. For each of the top tokens that most negatively impact human-likeness, give:
+- The token itself (prefixed with “Token” in Russian)
+- A brief explanation of why it lowers human-likeness
+- An example of correction at the token level
+- An example of a corrected sentence incorporating the improved token usage
+
+Also, include general suggestions on how to adjust style, vocabulary, and structure to increase human-likeness.
+
+Ensure that all corrections and examples are provided in the same language as the original text.
+
+Return strictly a JSON object:
+{{  
+  "examples": "<your recommendations in Russian, paragraphs with examples>"  
+}}
+Do not include any other keys or extra text.
+"""
+
+
+suggestions_parser = PydanticOutputParser(pydantic_object=SuggestionsSchema)
+suggestions_prompt = PromptTemplate(
+    template=suggestions_template,
+    input_variables=['score', 'explanation', 'tokens']
+)
+
+
 class State(TypedDict):
     text: str
     intermediate_scores: list[float]
     score: float
     explanation: str
     tokens: list[dict[str, float]]
+    examples: str
 
 
 EVALUATOR_WEIGHTS = {'openai/o4-mini': 0.64, 'anthropic/claude-3.7-sonnet': 0.60, 'transformer': 0.72}
@@ -113,18 +155,22 @@ class Model:
 
         self.explanation_llm = OpenRouter(model_name='openai/o4-mini', temperature=0)
 
+        self.suggestions_llm = OpenRouter(model_name='openai/o4-mini', temperature=0)
+
         graph_builder = StateGraph(State)
 
         graph_builder.add_node('evaluators', self._evaluators)
         graph_builder.add_node('aggregator', self._aggregator)
         graph_builder.add_node('explanation_node', self._explanation)
         graph_builder.add_node('token_analysis', self._token_analysis)
+        graph_builder.add_node('suggestions', self._suggestions)
 
         graph_builder.add_edge(START, 'evaluators')
         graph_builder.add_edge('evaluators', 'aggregator')
         graph_builder.add_edge('aggregator', 'explanation_node')
         graph_builder.add_edge('explanation_node', 'token_analysis')
-        graph_builder.add_edge('token_analysis', END)
+        graph_builder.add_edge('token_analysis', 'suggestions')
+        graph_builder.add_edge('suggestions', END)
 
         self.model = graph_builder.compile()
 
@@ -198,6 +244,25 @@ class Model:
     async def _token_analysis(self, state: State) -> State:
         tokens = analyze_text_with_gradcam(state['text'])
         return {'tokens': tokens}
+
+    async def _suggestions(self, state: State) -> State:
+        tokens = [
+            token for token in state['tokens']
+            if len(token['token']) >= 3 and token['ai_prob'] > 0.4 and not set('#,.').intersection(token['token'])
+        ]
+        prompt_values = {
+            'score': round(state['score'] * 100, 1),
+            'explanation': state['explanation'],
+            'tokens': tokens
+        }
+        tpl = suggestions_prompt.format(**prompt_values)
+        resp = await self.suggestions_llm.ainvoke(tpl)
+        text_resp = getattr(resp, 'content', str(resp))
+        try:
+            parsed = suggestions_parser.parse(text_resp)
+            return {'examples': parsed.examples}
+        except Exception:
+            return {'examples': text_resp}
 
     async def ainvoke(self, text: str) -> Dict:
         return await self.model.ainvoke({'text': text})

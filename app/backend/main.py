@@ -60,6 +60,7 @@ class ScoreTextResponse(BaseModel):
     score: float
     tokens: list[TokenAnalysis]
     explanation: str
+    examples: str
 
 
 @app.post('/api/v1/score/text', response_model=ScoreTextResponse)
@@ -67,13 +68,16 @@ async def root(request: TextRequest):
     try:
         result = await model.ainvoke(request.text)
 
-        db.create_record(request.text, result['tokens'], result['explanation'], result['score'])
+        db.create_record(
+            request.text, result['tokens'], result['explanation'], result['score'], result['examples']
+        )
 
         return {
             'score': result['score'],
             'explanation': result['explanation'],
             'text': request.text,
             'tokens': result['tokens'],
+            'examples': result['examples'],
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -85,6 +89,7 @@ class ScoreFileResponse(BaseModel):
     mime_type: str
     tokens: list[TokenAnalysis]
     explanation: str
+    examples: str
 
 
 @app.post('/api/v1/score/file', response_model=ScoreFileResponse)
@@ -121,7 +126,7 @@ async def analyze_file(file: UploadFile = File(...)):
 
         result = await model.ainvoke(text)
 
-        db.create_record(text, result['tokens'], result['explanation'], result['score'])
+        db.create_record(text, result['tokens'], result['explanation'], result['score'], result['examples'])
 
         return {
             'score': result['score'],
@@ -129,6 +134,7 @@ async def analyze_file(file: UploadFile = File(...)):
             'explanation': result['explanation'],
             'mime_type': mime_type,
             'tokens': result['tokens'],
+            'examples': result['examples'],
         }
     except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail='Invalid text encoding. Please ensure the file is UTF-8 encoded.')
@@ -136,6 +142,22 @@ async def analyze_file(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'Error processing file: {str(e)}')
+
+
+@app.get('/api/v1/record/last')
+def get_last_record_url():
+    record = db.get_last_record()
+    if not record:
+        raise HTTPException(status_code=404, detail='No records found')
+    return {'url': f'http://localhost:4173/record/{record["record_id"]}'}
+
+
+@app.get('/api/v1/record/{record_id}')
+def get_record_by_id(record_id: str):
+    record = db.get_record_by_id(record_id)
+    if not record:
+        raise HTTPException(status_code=404, detail='Record not found')
+    return record
 
 
 if __name__ == '__main__':

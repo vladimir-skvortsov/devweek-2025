@@ -9,6 +9,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedToken, setSelectedToken] = useState(null);
+  const [examples, setExamples] = useState('');
+
 
   const analyzeText = async () => {
     if (!text.trim()) return;
@@ -35,6 +37,8 @@ function App() {
       setScore(data.score);
       setExplanation(data.explanation);
       setTokens(data.tokens);
+      setExamples(data.examples);
+
     } catch (err) {
       setError('Failed to analyze text. Please try again.');
       console.error(err);
@@ -69,6 +73,8 @@ function App() {
       setText(data.text);
       setExplanation(data.explanation);
       setTokens(data.tokens);
+      setExamples(data.examples);
+
     } catch (err) {
       setError('Failed to analyze file. Please try again.');
       console.error(err);
@@ -97,6 +103,7 @@ function App() {
     setScore(null);
     setTokens([]);
     setExplanation('');
+    setExamples('')
     setError(null);
     setSelectedToken(null);
   };
@@ -106,6 +113,7 @@ function App() {
     setScore(null);
     setTokens([]);
     setExplanation('');
+    setExamples('')
     setError(null);
     setSelectedToken(null);
   };
@@ -217,6 +225,10 @@ function App() {
               <div className='mt-6 bg-white p-6 rounded-lg shadow'>
                 <h2 className='text-xl font-semibold mb-4'>Анализ текста</h2>
                 <p className='text-gray-800 whitespace-pre-line'>{explanation}</p>
+              </div>
+              <div className="mt-6 bg-white p-6 rounded-lg shadow">
+                <h2 className="text-xl font-semibold mb-4">Рекомендации</h2>
+                <p className="text-gray-800 whitespace-pre-line">{examples}</p>
               </div>
             </div>
           )}

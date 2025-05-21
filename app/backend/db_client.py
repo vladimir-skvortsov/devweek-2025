@@ -1,7 +1,7 @@
 import os
 import uuid
 import json
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict
 
 from dotenv import load_dotenv
 from pyairtable import Table
@@ -35,13 +35,17 @@ class AirtableClient:
                 return fields.get('user_id')
         return None
 
-    def create_record(self, text: str, tokens: List[Dict[str, float]], explanation: str, score: float) -> Dict:
+    def create_record(
+            self, text: str, tokens: List[Dict[str, float]],
+            explanation: str, score: float, examples: str
+    ) -> Dict:
         data = {
             'record_id': uuid.uuid4().hex,
             'text': text,
             'tokens': json.dumps(tokens),
             'explanation': explanation,
             'score': str(score),
+            'examples': examples,
         }
         return self.records_table.create(data)
 
@@ -60,7 +64,7 @@ class AirtableClient:
         return None
 
     def get_last_record(self) -> Optional[Dict]:
-        records = self.records_table.all(sort=[('record_id', 'desc')])
+        records = self.records_table.all(sort=['-record_id'])
         if records:
             return self._normalize_record(records[0])
         return None
@@ -88,5 +92,6 @@ class AirtableClient:
             'explanation': fields.get('explanation'),
             'score': float(fields.get('score', 0.0)),
             'tokens': json.loads(fields.get('tokens', '[]')),
+            'examples': fields.get('examples'),
         }
         return result

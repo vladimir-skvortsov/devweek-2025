@@ -1,4 +1,3 @@
-from pathlib import Path
 
 import docx
 import PyPDF2
@@ -6,9 +5,6 @@ from io import BytesIO
 from pptx import Presentation
 import pytesseract
 from PIL import Image
-import torch
-from captum.attr import LayerGradCam
-from model.transformer import TransformerClassifier, tokenizer, MAX_LENGTH
 
 
 def extract_text_from_txt(content: bytes) -> str:
