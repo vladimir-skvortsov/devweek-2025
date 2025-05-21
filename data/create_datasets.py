@@ -88,7 +88,11 @@ datasets = [
         'llm-detect-ai-generated-text',
         'train_essays.csv',
         lambda df: (
-            df.assign(is_human=lambda x: 1 - x['generated'])
+            df.assign(
+                id=lambda x: [uuid.uuid4().hex for _ in range(len(x))],
+                is_human=lambda x: 1 - x['generated'],
+                lang=lambda x: ['en'] * len(x)
+            )
             .assign(text_clean=lambda x: x['text'].str.replace(r'\s+', ' ', regex=True).str.strip())
             .drop_duplicates(subset=['text_clean'])
             .drop(columns=['generated', 'text_clean'])[['id', 'text', 'is_human', 'lang']]
