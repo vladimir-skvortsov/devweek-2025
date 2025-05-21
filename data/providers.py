@@ -37,8 +37,8 @@ class Provider(ABC):
 
         df = self._filter(df)
 
-        # print(f'Caching {self.dataset_id} {cache_key}')
-        # self.s3.upload_df(df, cache_key)
+        print(f'Caching {self.dataset_id} {cache_key}')
+        self.s3.upload_df(df, cache_key)
 
         return df
 
