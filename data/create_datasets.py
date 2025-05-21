@@ -128,6 +128,14 @@ datasets = [
             lang=lambda x: ['ru'] * len(x),
         )[['id', 'text', 'is_human', 'lang']],
     ),
+    FileProvider(
+        'raw/generated.csv',
+        transform_func=lambda df: df.rename(columns={'Text': 'text'}).assign(
+            id=lambda x: [uuid.uuid4().hex for _ in range(len(x))],
+            is_human=lambda x: x['is_human'],
+            lang=lambda x: x['language'].map({'english': 'en', 'russian': 'ru'}),
+        )[['id', 'text', 'is_human', 'lang']],
+    ),
 ]
 
 s3_client = S3Client()
