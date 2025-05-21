@@ -1,4 +1,6 @@
 import asyncio
+from typing import Dict
+
 import torch
 import torch.nn.functional as F
 from pathlib import Path
@@ -189,5 +191,5 @@ class Model:
         except Exception:
             return {'explanation': text_resp}
 
-    async def ainvoke(self, text: str) -> float:
+    async def ainvoke(self, text: str) -> Dict:
         return await self.model.ainvoke({'text': text})
