@@ -8,9 +8,11 @@ from pyairtable import Table
 
 load_dotenv()
 
+
 class AirtableClient:
     def __init__(self):
         self.token = os.getenv('AIRTABLE_TOKEN')
+        print(self.token)
         self.base_id = 'appBdrOMH7UmeXVyA'
         self.records_table = Table(self.token, self.base_id, 'Records')
         self.users_table = Table(self.token, self.base_id, 'Users')
@@ -36,8 +38,7 @@ class AirtableClient:
         return None
 
     def create_record(
-            self, text: str, tokens: List[Dict[str, float]],
-            explanation: str, score: float, examples: str
+        self, text: str, tokens: List[Dict[str, float]], explanation: str, score: float, examples: str
     ) -> Dict:
         data = {
             'record_id': uuid.uuid4().hex,
