@@ -22,7 +22,6 @@ function App() {
   const fetchSharedData = useCallback(async (id) => {
     setLoading(true);
     setError(null);
-    setIsSharedContent(true);
     try {
       const response = await fetch(`http://localhost:8000/api/v1/text/get?id=${id}`);
       if (!response.ok) {
@@ -34,6 +33,7 @@ function App() {
       setExplanation(data.explanation);
       setTokens(data.tokens);
       setExamples(data.examples);
+      setIsSharedContent(true);
     } catch (err) {
       setError('Failed to load shared data. Please try again.');
       console.error(err);
