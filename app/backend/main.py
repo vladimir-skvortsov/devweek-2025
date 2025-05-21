@@ -18,7 +18,6 @@ from app.backend.utils import (
     extract_text_from_txt,
     extract_text_from_pptx,
     extract_text_from_image,
-    analyze_text_with_gradcam,
 )
 from model.model import Model
 from app.backend.db_client import AirtableClient
@@ -67,15 +66,14 @@ class ScoreTextResponse(BaseModel):
 async def root(request: TextRequest):
     try:
         result = await model.ainvoke(request.text)
-        tokens_analysis = analyze_text_with_gradcam(request.text)
 
-        db.create_record(request.text, tokens_analysis, result['explanation'], result['score'])
+        db.create_record(request.text, result['tokens'], result['explanation'], result['score'])
 
         return {
             'score': result['score'],
             'explanation': result['explanation'],
             'text': request.text,
-            'tokens': tokens_analysis,
+            'tokens': result['tokens'],
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -122,16 +120,15 @@ async def analyze_file(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail='Extracted text length cannot exceed 10000 characters')
 
         result = await model.ainvoke(text)
-        tokens_analysis = analyze_text_with_gradcam(text)
 
-        db.create_record(text, tokens_analysis, result['explanation'], result['score'])
+        db.create_record(text, result['tokens'], result['explanation'], result['score'])
 
         return {
             'score': result['score'],
             'text': text,
             'explanation': result['explanation'],
             'mime_type': mime_type,
-            'tokens': tokens_analysis,
+            'tokens': result['tokens'],
         }
     except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail='Invalid text encoding. Please ensure the file is UTF-8 encoded.')

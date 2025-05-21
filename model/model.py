@@ -15,6 +15,7 @@ from langchain_core.output_parsers import StrOutputParser
 from model.utils.JsonExtractor import JsonExtractor
 from model.utils.OpenRouter import OpenRouter
 from model.transformer import TransformerClassifier, tokenizer, MAX_LENGTH
+from model.utils.Tokenizer import analyze_text_with_gradcam
 
 load_dotenv()
 
@@ -83,6 +84,7 @@ class State(TypedDict):
     intermediate_scores: list[float]
     score: float
     explanation: str
+    tokens: list[dict[str, float]]
 
 
 EVALUATOR_WEIGHTS = {'openai/o4-mini': 0.64, 'anthropic/claude-3.7-sonnet': 0.60, 'transformer': 0.72}
@@ -116,11 +118,13 @@ class Model:
         graph_builder.add_node('evaluators', self._evaluators)
         graph_builder.add_node('aggregator', self._aggregator)
         graph_builder.add_node('explanation_node', self._explanation)
+        graph_builder.add_node('token_analysis', self._token_analysis)
 
         graph_builder.add_edge(START, 'evaluators')
         graph_builder.add_edge('evaluators', 'aggregator')
         graph_builder.add_edge('aggregator', 'explanation_node')
-        graph_builder.add_edge('explanation_node', END)
+        graph_builder.add_edge('explanation_node', 'token_analysis')
+        graph_builder.add_edge('token_analysis', END)
 
         self.model = graph_builder.compile()
 
@@ -190,6 +194,10 @@ class Model:
             return {'explanation': parsed.explanation}
         except Exception:
             return {'explanation': text_resp}
+
+    async def _token_analysis(self, state: State) -> State:
+        tokens = analyze_text_with_gradcam(state['text'])
+        return {'tokens': tokens}
 
     async def ainvoke(self, text: str) -> Dict:
         return await self.model.ainvoke({'text': text})
