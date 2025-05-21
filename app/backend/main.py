@@ -21,12 +21,14 @@ from app.backend.utils import (
     analyze_text_with_gradcam,
 )
 from model.model import Model
+from app.backend.db_client import AirtableClient
 
 load_dotenv()
 
 app = FastAPI(title=PROJECT_NAME)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model = Model(device=device)
+db = AirtableClient()
 
 app.add_middleware(
     CORSMiddleware,
@@ -66,6 +68,9 @@ async def root(request: TextRequest):
     try:
         result = await model.ainvoke(request.text)
         tokens_analysis = analyze_text_with_gradcam(request.text)
+
+        db.create_record(request.text, tokens_analysis, result['explanation'], result['score'])
+
         return {
             'score': result['score'],
             'explanation': result['explanation'],
@@ -118,6 +123,8 @@ async def analyze_file(file: UploadFile = File(...)):
 
         result = await model.ainvoke(text)
         tokens_analysis = analyze_text_with_gradcam(text)
+
+        db.create_record(text, tokens_analysis, result['explanation'], result['score'])
 
         return {
             'score': result['score'],
