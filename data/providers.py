@@ -22,7 +22,7 @@ class Provider(ABC):
         df = df.drop_duplicates(subset=['text_clean']).reset_index(drop=True)
         df['text'] = df['text_clean']
         df = df.drop(columns=['text_clean'])
-        return df[df['text'].str.len() >= 40]
+        return df[df['text'].str.len() >= 80]
 
     def get_df(self) -> pd.DataFrame:
         cache_key: str = self.s3.get_cache_key(self.dataset_id)
