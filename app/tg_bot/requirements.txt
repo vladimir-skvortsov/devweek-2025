@@ -1,0 +1,4 @@
+aiogram==2.24
+aiohttp
+python-dotenv
+pyairtable
