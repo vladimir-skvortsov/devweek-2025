@@ -2,7 +2,9 @@ from pathlib import Path
 
 import torch
 from captum.attr import LayerGradCam
-from model.transformer import TransformerClassifier, tokenizer, MAX_LENGTH
+
+from model.transformer import MAX_LENGTH, TransformerClassifier, tokenizer
+
 
 def analyze_text_with_gradcam(text: str) -> list[dict[str, float]]:
     # Load model and weights
