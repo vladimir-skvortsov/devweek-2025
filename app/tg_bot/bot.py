@@ -138,7 +138,8 @@ async def handle_file(message: types.Message, state: FSMContext):
     data = aiohttp.FormData()
     data.add_field('file', bio, filename=filename, content_type=mime)
     async with aiohttp.ClientSession() as session:
-        async with session.post(f'{API_URL}/api/v1/score/file', data=data) as resp:
+        async with session.post(f'{API_URL}/api/v1/score/file', data=data,
+                                json={'text': '', 'models': ['gpt', 'claude']}) as resp:
             result = await resp.json()
 
     if result.get('text', 0) == 0:
@@ -173,7 +174,7 @@ async def handle_text(message: types.Message, state: FSMContext):
     async with aiohttp.ClientSession() as session:
         resp = await session.post(
             f'{API_URL}/api/v1/score/text',
-            json={'text': text}
+            json={'text': text, 'models': ['gpt', 'claude']}
         )
         result = await resp.json()
     rec = db.create_record(text, result['tokens'], result['explanation'], result['score'], result['examples'])
