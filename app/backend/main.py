@@ -183,14 +183,12 @@ async def share_text(request: ShareRequest):
         request.score,
         request.examples,
     )
-    print('record', record)
 
     return {'id': record['id']}
 
 
 @app.get('/api/v1/text/get')
 async def get_shared_text(id: str):
-    print('record_id', id)
     record = db.get_record_by_id(id)
     if not record:
         raise HTTPException(status_code=404, detail='Record not found')
