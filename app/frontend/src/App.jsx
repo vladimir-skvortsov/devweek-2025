@@ -21,13 +21,13 @@ function App() {
 
   const [selectedModels, setSelectedModels] = useState({
     gpt: false,
-    claude: false
+    claude: false,
   });
 
   const handleModelChange = useCallback((model) => {
-    setSelectedModels(prev => ({
+    setSelectedModels((prev) => ({
       ...prev,
-      [model]: !prev[model]
+      [model]: !prev[model],
     }));
   }, []);
 
@@ -85,7 +85,7 @@ function App() {
           explanation,
           tokens,
           examples,
-          models: getModelsArray()
+          models: getModelsArray(),
         }),
       });
 
@@ -234,25 +234,24 @@ function App() {
         <Header />
 
         <div className='bg-white rounded-xl shadow-lg p-6'>
-          {/* Добавляем чекбоксы выбора моделей */}
-          <div className="flex gap-4 mb-4">
-            <label className="inline-flex items-center">
+          <div className='flex gap-4 mb-4'>
+            <label className='inline-flex items-center cursor-pointer'>
               <input
-                type="checkbox"
+                type='checkbox'
                 checked={selectedModels.gpt}
                 onChange={() => handleModelChange('gpt')}
-                className="form-checkbox h-5 w-5 text-blue-600"
+                className='form-checkbox h-5 w-5 text-[#4F46E5] cursor-pointer'
               />
-              <span className="ml-2 text-gray-700">GPT</span>
+              <span className='ml-2 text-gray-700'>GPT</span>
             </label>
-            <label className="inline-flex items-center">
+            <label className='inline-flex items-center cursor-pointer cursor-pointer'>
               <input
-                type="checkbox"
+                type='checkbox'
                 checked={selectedModels.claude}
                 onChange={() => handleModelChange('claude')}
-                className="form-checkbox h-5 w-5 text-purple-600"
+                className='form-checkbox h-5 w-5 text-[#4F46E5] cursor-pointer'
               />
-              <span className="ml-2 text-gray-700">Claude</span>
+              <span className='ml-2 text-gray-700'>Claude</span>
             </label>
           </div>
 
@@ -268,6 +267,5 @@ function App() {
     </div>
   );
 }
-
 
 export default App;
