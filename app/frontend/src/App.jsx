@@ -19,6 +19,25 @@ function App() {
   const [shareLoading, setShareLoading] = useState(false);
   const [isSharedContent, setIsSharedContent] = useState(false);
 
+  const [selectedModels, setSelectedModels] = useState({
+    gpt: false,
+    claude: false
+  });
+
+  const handleModelChange = useCallback((model) => {
+    setSelectedModels(prev => ({
+      ...prev,
+      [model]: !prev[model]
+    }));
+  }, []);
+
+  const getModelsArray = useCallback(() => {
+    const models = [];
+    if (selectedModels.gpt) models.push('gpt');
+    if (selectedModels.claude) models.push('claude');
+    return models;
+  }, [selectedModels]);
+
   const fetchSharedData = useCallback(async (id) => {
     setLoading(true);
     setError(null);
@@ -66,6 +85,7 @@ function App() {
           explanation,
           tokens,
           examples,
+          models: getModelsArray()
         }),
       });
 
@@ -82,7 +102,7 @@ function App() {
     } finally {
       setShareLoading(false);
     }
-  }, [text, score, explanation, tokens, examples]);
+  }, [text, score, explanation, tokens, examples, getModelsArray]);
 
   const analyzeText = useCallback(async () => {
     if (!text.trim()) return;
@@ -97,7 +117,7 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, models: getModelsArray() }),
       });
 
       if (!response.ok) {
@@ -116,7 +136,7 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [text]);
+  }, [text, getModelsArray]);
 
   const handleFileUpload = useCallback(async (event) => {
     const file = event.target.files[0];
@@ -214,6 +234,28 @@ function App() {
         <Header />
 
         <div className='bg-white rounded-xl shadow-lg p-6'>
+          {/* Добавляем чекбоксы выбора моделей */}
+          <div className="flex gap-4 mb-4">
+            <label className="inline-flex items-center">
+              <input
+                type="checkbox"
+                checked={selectedModels.gpt}
+                onChange={() => handleModelChange('gpt')}
+                className="form-checkbox h-5 w-5 text-blue-600"
+              />
+              <span className="ml-2 text-gray-700">GPT</span>
+            </label>
+            <label className="inline-flex items-center">
+              <input
+                type="checkbox"
+                checked={selectedModels.claude}
+                onChange={() => handleModelChange('claude')}
+                className="form-checkbox h-5 w-5 text-purple-600"
+              />
+              <span className="ml-2 text-gray-700">Claude</span>
+            </label>
+          </div>
+
           <TextInput {...textInputProps} />
 
           <TokenInfo selectedToken={selectedToken} />
@@ -226,5 +268,6 @@ function App() {
     </div>
   );
 }
+
 
 export default App;
