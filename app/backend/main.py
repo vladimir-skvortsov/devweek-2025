@@ -40,7 +40,9 @@ app.add_middleware(
 
 class TextRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=10000)
-
+    models: list = Field(
+        ...,
+    )
     @validator('text')
     def validate_text_length(cls, v):
         if len(v.strip()) == 0:
@@ -66,7 +68,7 @@ class ScoreTextResponse(BaseModel):
 @app.post('/api/v1/score/text', response_model=ScoreTextResponse)
 async def root(request: TextRequest):
     try:
-        result = await model.ainvoke(request.text)
+        result = await model.ainvoke(request.text, request.models)
 
         return {
             'score': result['score'],
