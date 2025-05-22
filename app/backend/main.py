@@ -87,7 +87,7 @@ class ScoreFileResponse(BaseModel):
 
 
 @app.post('/api/v1/score/file', response_model=ScoreFileResponse)
-async def analyze_file(request: TextRequest, file: UploadFile = File(...)):
+async def analyze_file(file: UploadFile = File(...)):
     content = await file.read()
 
     # Detect MIME type
@@ -118,7 +118,7 @@ async def analyze_file(request: TextRequest, file: UploadFile = File(...)):
         if len(text) > 10000:
             raise HTTPException(status_code=400, detail='Extracted text length cannot exceed 10000 characters')
 
-        result = await model.ainvoke(text, request.models)
+        result = await model.ainvoke(text, ['gpt', 'claude'])
 
         db.create_record(text, result['tokens'], result['explanation'], result['score'], result['examples'])
 
