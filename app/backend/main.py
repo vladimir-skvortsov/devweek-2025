@@ -6,21 +6,17 @@ sys.path.append(project_root)
 
 import magic
 import torch
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, validator
 
 from app.backend.config import PROJECT_NAME
-from app.backend.utils import (
-    extract_text_from_docx,
-    extract_text_from_pdf,
-    extract_text_from_txt,
-    extract_text_from_pptx,
-    extract_text_from_image,
-)
-from model.model import Model
 from app.backend.db_client import AirtableClient
+from app.backend.utils import (extract_text_from_docx, extract_text_from_image,
+                               extract_text_from_pdf, extract_text_from_pptx,
+                               extract_text_from_txt)
+from model.model import Model
 
 load_dotenv()
 

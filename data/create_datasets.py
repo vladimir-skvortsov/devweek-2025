@@ -1,10 +1,11 @@
+import argparse
 import os
 import uuid
-import pandas as pd
-import argparse
-from dotenv import load_dotenv
 
-from providers import KaggleProvider, HuggingFaceProvider, FileProvider, KaggleCompetitionProvider
+import pandas as pd
+from dotenv import load_dotenv
+from providers import (FileProvider, HuggingFaceProvider,
+                       KaggleCompetitionProvider, KaggleProvider)
 from S3Client import S3Client
 
 parser = argparse.ArgumentParser(
