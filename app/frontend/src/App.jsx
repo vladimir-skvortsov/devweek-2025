@@ -130,6 +130,7 @@ function App() {
       setExplanation(data.explanation);
       setTokens(data.tokens);
       setExamples(data.examples);
+      setIsSharedContent(false);
     } catch (err) {
       setError('Failed to analyze text. Please try again.');
       console.error(err);
@@ -167,6 +168,7 @@ function App() {
         setExplanation(data.explanation);
         setTokens(data.tokens);
         setExamples(data.examples);
+        setIsSharedContent(false);
 
         event.target.value = '';
       } catch (err) {
