@@ -90,10 +90,10 @@ Input:
 - A detailed explanation in Russian: {explanation}
 - A JSON list of tokens with their influence scores: {tokens}
 
-Footnote: before each token name itself, write the word “Token” in Russian.
+Footnote: before each token name itself, write the word "Token" in Russian.
 
 Your task is to provide recommendations in Russian, logically separated into paragraphs. For each of the top tokens that most negatively impact human-likeness, give:
-- The token itself (prefixed with “Token” in Russian)
+- The token itself (prefixed with "Token" in Russian)
 - A brief explanation of why it lowers human-likeness
 - An example of correction at the token level
 - An example of a corrected sentence incorporating the improved token usage
@@ -124,8 +124,12 @@ class State(TypedDict):
     models: list
 
 
-EVALUATOR_WEIGHTS = {'openai/o4-mini': 0.64, 'anthropic/claude-3.7-sonnet': 0.60, 'transformer': 0.84}
-NORMALIZED_WEIGHTS = [w / sum(EVALUATOR_WEIGHTS.values()) for w in EVALUATOR_WEIGHTS.values()]
+# Base weights for each model when used in the ensemble
+EVALUATOR_WEIGHTS = {
+    'gpt': 0.64,  # weight for openai/o4-mini
+    'claude': 0.60,  # weight for anthropic/claude-3.7-sonnet
+    'transformer': 0.84,
+}
 
 
 class Model:
@@ -144,13 +148,7 @@ class Model:
             'claude': OpenRouter(model_name='anthropic/claude-3.7-sonnet', temperature=0),
         }
         self.evaluator_chains = {
-            name: (
-                    evaluator_prompt
-                    | evaluator_llm
-                    | StrOutputParser()
-                    | JsonExtractor()
-                    | evaluator_parser
-            )
+            name: (evaluator_prompt | evaluator_llm | StrOutputParser() | JsonExtractor() | evaluator_parser)
             for name, evaluator_llm in self.evaluator_llms.items()
         }
 
@@ -213,6 +211,8 @@ class Model:
         # Get scores from all evaluators
         llm_scores = []
         for model in state['models']:
+            if model == 'transformer':
+                continue
             res = await self._evaluate_chain(self.evaluator_chains[model], state['text'])
             llm_scores.append(res)
 
@@ -220,7 +220,6 @@ class Model:
 
         # Combine all scores
         scores = llm_scores + [transformer_score]
-        print('scores', scores)
 
         # Verify all scores are valid
         if any(score is None for score in scores):
@@ -228,8 +227,14 @@ class Model:
 
         return {'intermediate_scores': scores}
 
+    def _get_normalized_weights(self, models: list) -> list[float]:
+        weights = [EVALUATOR_WEIGHTS[model] for model in models]
+        total_weight = sum(weights)
+        return [w / total_weight for w in weights]
+
     def _aggregator(self, state: State) -> State:
-        weighted_sum = sum(score * weight for score, weight in zip(state['intermediate_scores'], NORMALIZED_WEIGHTS))
+        normalized_weights = self._get_normalized_weights(state['models'])
+        weighted_sum = sum(score * weight for score, weight in zip(state['intermediate_scores'], normalized_weights))
         return {'score': weighted_sum}
 
     async def _explanation(self, state: State) -> State:

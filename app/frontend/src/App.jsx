@@ -138,40 +138,44 @@ function App() {
     }
   }, [text, getModelsArray]);
 
-  const handleFileUpload = useCallback(async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+  const handleFileUpload = useCallback(
+    async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
 
-    setLoading(true);
-    setError(null);
-    setSelectedToken(null);
+      setLoading(true);
+      setError(null);
+      setSelectedToken(null);
 
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
 
-      const response = await fetch('http://localhost:8000/api/v1/score/file', {
-        method: 'POST',
-        body: formData,
-      });
+        const modelsParam = getModelsArray().join(',');
+        const response = await fetch(`http://localhost:8000/api/v1/score/file?models=${modelsParam}`, {
+          method: 'POST',
+          body: formData,
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to analyze file');
+        if (!response.ok) {
+          throw new Error('Failed to analyze file');
+        }
+
+        const data = await response.json();
+        setScore(data.score);
+        setText(data.text);
+        setExplanation(data.explanation);
+        setTokens(data.tokens);
+        setExamples(data.examples);
+      } catch (err) {
+        setError('Failed to analyze file. Please try again.');
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
-
-      const data = await response.json();
-      setScore(data.score);
-      setText(data.text);
-      setExplanation(data.explanation);
-      setTokens(data.tokens);
-      setExamples(data.examples);
-    } catch (err) {
-      setError('Failed to analyze file. Please try again.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    [getModelsArray]
+  );
 
   const handleTextChange = useCallback((e) => {
     const newText = e.target.value.slice(0, 10000);

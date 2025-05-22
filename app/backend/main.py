@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+import json
 
 project_root = str(Path(__file__).parent.parent.parent)
 sys.path.append(project_root)
@@ -13,9 +14,13 @@ from pydantic import BaseModel, Field, validator
 
 from app.backend.config import PROJECT_NAME
 from app.backend.db_client import AirtableClient
-from app.backend.utils import (extract_text_from_docx, extract_text_from_image,
-                               extract_text_from_pdf, extract_text_from_pptx,
-                               extract_text_from_txt)
+from app.backend.utils import (
+    extract_text_from_docx,
+    extract_text_from_image,
+    extract_text_from_pdf,
+    extract_text_from_pptx,
+    extract_text_from_txt,
+)
 from model.model import Model
 
 load_dotenv()
@@ -39,6 +44,7 @@ class TextRequest(BaseModel):
     models: list = Field(
         ...,
     )
+
     @validator('text')
     def validate_text_length(cls, v):
         if len(v.strip()) == 0:
@@ -64,7 +70,9 @@ class ScoreTextResponse(BaseModel):
 @app.post('/api/v1/score/text', response_model=ScoreTextResponse)
 async def root(request: TextRequest):
     try:
-        result = await model.ainvoke(request.text, request.models)
+        models_list = request.models
+        models_list += ['transformer']
+        result = await model.ainvoke(request.text, models_list)
 
         return {
             'score': result['score'],
@@ -87,8 +95,18 @@ class ScoreFileResponse(BaseModel):
 
 
 @app.post('/api/v1/score/file', response_model=ScoreFileResponse)
-async def analyze_file(file: UploadFile = File(...)):
+async def analyze_file(file: UploadFile = File(...), models: str = None):
     content = await file.read()
+
+    if models.strip():
+        models_list = [m.strip() for m in models.split(',') if m.strip()]
+        if not models_list:
+            models_list = ['gpt', 'claude']
+        elif not all(model in ['gpt', 'claude'] for model in models_list):
+            raise HTTPException(status_code=400, detail='Invalid models. Supported models are: gpt, claude')
+    else:
+        models_list = []
+    models_list += ['transformer']
 
     # Detect MIME type
     mime = magic.Magic(mime=True)
@@ -118,7 +136,7 @@ async def analyze_file(file: UploadFile = File(...)):
         if len(text) > 10000:
             raise HTTPException(status_code=400, detail='Extracted text length cannot exceed 10000 characters')
 
-        result = await model.ainvoke(text, ['gpt', 'claude'])
+        result = await model.ainvoke(text, models_list)
 
         db.create_record(text, result['tokens'], result['explanation'], result['score'], result['examples'])
 
