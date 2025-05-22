@@ -1,15 +1,26 @@
 import os
-from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import Callable
-
 import kagglehub
 import pandas as pd
 import utils
+import glob
+from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Callable
+from charset_normalizer import from_bytes
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from dotenv import load_dotenv
 from S3Client import S3Client
 
 load_dotenv()
+
+
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=2000,
+    chunk_overlap=500,
+    length_function=len,
+    is_separator_regex=False,
+    separators=['\n\n', '\n', '.', '!', '?', ',', ' ', '\uff0e', '\u3002'],
+)
 
 
 class Provider(ABC):
@@ -23,7 +34,23 @@ class Provider(ABC):
         df = df.drop_duplicates(subset=['text_clean']).reset_index(drop=True)
         df['text'] = df['text_clean']
         df = df.drop(columns=['text_clean'])
-        return df[df['text'].str.len() >= 80]
+
+        # Process texts and create new rows for split texts
+        new_rows = []
+        for _, row in df.iterrows():
+            text = row['text']
+            if len(text) >= 2000:  # Only split texts longer than 2000 characters
+                chunks = text_splitter.split_text(text)
+                for chunk in chunks:
+                    if len(chunk) >= 80:  # Keep only chunks that meet minimum length
+                        new_row = row.copy()
+                        new_row['text'] = chunk
+                        new_rows.append(new_row)
+            elif len(text) >= 80:  # Keep original texts that meet minimum length
+                new_rows.append(row)
+
+        # Create new dataframe with split texts
+        return pd.DataFrame(new_rows).reset_index(drop=True)
 
     def get_df(self) -> pd.DataFrame:
         cache_key: str = self.s3.get_cache_key(self.dataset_id)
@@ -37,6 +64,9 @@ class Provider(ABC):
         df = self.transform_func(df)
 
         df = self._filter(df)
+
+        if '__index_level_0__' in df.columns:
+            df = df.drop(columns=['__index_level_0__'])
 
         print(f'Caching {self.dataset_id} {cache_key}')
         self.s3.upload_df(df, cache_key)
@@ -91,6 +121,27 @@ class KaggleCompetitionProvider(Provider):
             force_download=False,
         )
         return pd.read_csv(csv_path)
+
+
+class KaggleTxtProvider(Provider):
+    def __init__(self, dataset_id: str, transform_func: Callable[[pd.DataFrame], pd.DataFrame]):
+        super().__init__(f'kaggle_txt_{dataset_id}', transform_func)
+        self.dataset_id = dataset_id
+
+    def _download(self) -> pd.DataFrame:
+        path = kagglehub.dataset_download(self.dataset_id)
+        txt_files = glob.glob(os.path.join(path, '**', '*.txt'), recursive=True)
+        if not txt_files:
+            raise RuntimeError(f'No .txt files found in {self.dataset_id}')
+        rows = []
+        for fp in txt_files:
+            raw = Path(fp).read_bytes()
+            try:
+                text = raw.decode('utf-8')
+            except UnicodeDecodeError:
+                text = from_bytes(raw).best().output()  # there are strange symbols (Old Russian, etc.), observe this
+            rows.append({'text': text})
+        return pd.DataFrame(rows)
 
 
 class HuggingFaceProvider(Provider):

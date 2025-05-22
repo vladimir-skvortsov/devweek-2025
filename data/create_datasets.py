@@ -2,10 +2,9 @@ import argparse
 import os
 import uuid
 
+from providers import KaggleProvider, HuggingFaceProvider, FileProvider, KaggleCompetitionProvider, KaggleTxtProvider
 import pandas as pd
 from dotenv import load_dotenv
-from providers import (FileProvider, HuggingFaceProvider,
-                       KaggleCompetitionProvider, KaggleProvider)
 from S3Client import S3Client
 
 parser = argparse.ArgumentParser(
@@ -89,11 +88,49 @@ datasets = [
         'llm-detect-ai-generated-text',
         'train_essays.csv',
         lambda df: (
-            df.assign(is_human=lambda x: 1 - x['generated'])
+            df.assign(
+                id=lambda x: [uuid.uuid4().hex for _ in range(len(x))],
+                is_human=lambda x: 1 - x['generated'],
+                lang=lambda x: ['en'] * len(x),
+            )
             .assign(text_clean=lambda x: x['text'].str.replace(r'\s+', ' ', regex=True).str.strip())
             .drop_duplicates(subset=['text_clean'])
             .drop(columns=['generated', 'text_clean'])[['id', 'text', 'is_human', 'lang']]
         ),
+    ),
+    KaggleTxtProvider(
+        'd0rj3228/russian-literature',
+        lambda df: df.assign(
+            is_human=1,
+            id=[uuid.uuid4().hex for _ in range(len(df))],
+            lang=['ru'] * len(df),
+        )[['id', 'text', 'is_human', 'lang']],
+    ),
+    KaggleTxtProvider(
+        'artalmaz31/complex-russian-dataset',
+        lambda df: df.assign(
+            is_human=1,
+            id=[uuid.uuid4().hex for _ in range(len(df))],
+            lang=['ru'] * len(df),
+        )[['id', 'text', 'is_human', 'lang']],
+    ),
+    KaggleProvider(
+        'mar1mba/russian-sentiment-dataset',
+        ['sentiment_dataset.csv'],
+        lambda df: df.assign(
+            is_human=1,
+            id=[uuid.uuid4().hex for _ in range(len(df))],
+            lang=['ru'] * len(df),
+        )[['id', 'text', 'is_human', 'lang']],
+    ),
+    KaggleProvider(
+        'vsevolodbogodist/data-jokes',
+        ['dataset.csv'],
+        lambda df: df.assign(
+            is_human=1,
+            id=[uuid.uuid4().hex for _ in range(len(df))],
+            lang=['ru'] * len(df),
+        )[['id', 'text', 'is_human', 'lang']],
     ),
     # HuggingFace datasets
     HuggingFaceProvider(
