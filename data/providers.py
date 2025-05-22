@@ -1,15 +1,15 @@
 import os
-from abc import ABC, abstractmethod
-from typing import Callable
-import pandas as pd
 import kagglehub
-from dotenv import load_dotenv
-from pathlib import Path
-from S3Client import S3Client
+import pandas as pd
 import utils
 import glob
+from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Callable
 from charset_normalizer import from_bytes
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from dotenv import load_dotenv
+from S3Client import S3Client
 
 load_dotenv()
 

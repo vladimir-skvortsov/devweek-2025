@@ -1,7 +1,8 @@
 import os
+from io import BytesIO
+
 import boto3
 import pandas as pd
-from io import BytesIO
 
 
 class S3Client:

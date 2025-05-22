@@ -4,15 +4,21 @@ RUN apt-get update && apt-get install -y \
     libmagic-dev \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+RUN pip install "dvc[s3]>=3.0.0"
+
+COPY . .
+
+RUN dvc config core.no_scm true
+RUN dvc pull model/transformer.pth.dvc
+
+WORKDIR /
+
+ENV PYTHONPATH=/
 
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
-COPY app/backend/ ./backend/
-COPY model/ ./model/
 
-WORKDIR /app/backend
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "app.backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

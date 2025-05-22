@@ -1,24 +1,21 @@
 import sys
+from pathlib import Path
 
-sys.path.append('../..')
+project_root = str(Path(__file__).parent.parent.parent)
+sys.path.append(project_root)
 
 import magic
 import torch
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, validator
-from typing import List, Dict
 
-from config import PROJECT_NAME
-from utils import (
-    extract_text_from_docx,
-    extract_text_from_pdf,
-    extract_text_from_txt,
-    extract_text_from_pptx,
-    extract_text_from_image,
-    analyze_text_with_gradcam,
-)
+from app.backend.config import PROJECT_NAME
+from app.backend.db_client import AirtableClient
+from app.backend.utils import (extract_text_from_docx, extract_text_from_image,
+                               extract_text_from_pdf, extract_text_from_pptx,
+                               extract_text_from_txt)
 from model.model import Model
 
 load_dotenv()
@@ -26,6 +23,7 @@ load_dotenv()
 app = FastAPI(title=PROJECT_NAME)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model = Model(device=device)
+db = AirtableClient()
 
 app.add_middleware(
     CORSMiddleware,
@@ -56,15 +54,23 @@ class TokenAnalysis(BaseModel):
 
 class ScoreTextResponse(BaseModel):
     score: float
-    tokens: List[TokenAnalysis]
+    tokens: list[TokenAnalysis]
+    explanation: str
+    examples: str
 
 
-@app.post('/api/v1/score/text')
+@app.post('/api/v1/score/text', response_model=ScoreTextResponse)
 async def root(request: TextRequest):
     try:
-        score = await model.ainvoke({'text': request.text})
-        tokens_analysis = analyze_text_with_gradcam(request.text)
-        return {'score': score, 'tokens': tokens_analysis}
+        result = await model.ainvoke(request.text)
+
+        return {
+            'score': result['score'],
+            'explanation': result['explanation'],
+            'text': request.text,
+            'tokens': result['tokens'],
+            'examples': result['examples'],
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -73,7 +79,9 @@ class ScoreFileResponse(BaseModel):
     score: float
     text: str
     mime_type: str
-    tokens: List[TokenAnalysis]
+    tokens: list[TokenAnalysis]
+    explanation: str
+    examples: str
 
 
 @app.post('/api/v1/score/file', response_model=ScoreFileResponse)
@@ -108,16 +116,72 @@ async def analyze_file(file: UploadFile = File(...)):
         if len(text) > 10000:
             raise HTTPException(status_code=400, detail='Extracted text length cannot exceed 10000 characters')
 
-        score = await model.ainvoke({'text': text})
-        tokens_analysis = analyze_text_with_gradcam(text)
+        result = await model.ainvoke(text)
 
-        return {'score': score, 'text': text, 'mime_type': mime_type, 'tokens': tokens_analysis}
+        db.create_record(text, result['tokens'], result['explanation'], result['score'], result['examples'])
+
+        return {
+            'score': result['score'],
+            'text': text,
+            'explanation': result['explanation'],
+            'mime_type': mime_type,
+            'tokens': result['tokens'],
+            'examples': result['examples'],
+        }
     except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail='Invalid text encoding. Please ensure the file is UTF-8 encoded.')
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'Error processing file: {str(e)}')
+
+
+class ShareRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=10000)
+    score: float
+    tokens: list[TokenAnalysis]
+    explanation: str
+    examples: str
+
+    @validator('text')
+    def validate_text_length(cls, v):
+        if len(v.strip()) == 0:
+            raise ValueError('Text cannot be empty')
+        if len(v) > 10000:
+            raise ValueError('Text length cannot exceed 10000 characters')
+        return v
+
+
+@app.post('/api/v1/text/share')
+async def share_text(request: ShareRequest):
+    tokens_dict = [token.dict() for token in request.tokens]
+
+    record = db.create_record(
+        request.text,
+        tokens_dict,
+        request.explanation,
+        request.score,
+        request.examples,
+    )
+    print('record', record)
+
+    return {'id': record['id']}
+
+
+@app.get('/api/v1/text/get')
+async def get_shared_text(id: str):
+    print('record_id', id)
+    record = db.get_record_by_id(id)
+    if not record:
+        raise HTTPException(status_code=404, detail='Record not found')
+
+    return {
+        'text': record['text'],
+        'score': record['score'],
+        'explanation': record['explanation'],
+        'tokens': record['tokens'],
+        'examples': record['examples'],
+    }
 
 
 if __name__ == '__main__':

@@ -1,10 +1,10 @@
+import argparse
 import os
 import uuid
-import pandas as pd
-import argparse
-from dotenv import load_dotenv
 
 from providers import KaggleProvider, HuggingFaceProvider, FileProvider, KaggleCompetitionProvider, KaggleTxtProvider
+import pandas as pd
+from dotenv import load_dotenv
 from S3Client import S3Client
 
 parser = argparse.ArgumentParser(
@@ -91,7 +91,7 @@ datasets = [
             df.assign(
                 id=lambda x: [uuid.uuid4().hex for _ in range(len(x))],
                 is_human=lambda x: 1 - x['generated'],
-                lang=lambda x: ['en'] * len(x)
+                lang=lambda x: ['en'] * len(x),
             )
             .assign(text_clean=lambda x: x['text'].str.replace(r'\s+', ' ', regex=True).str.strip())
             .drop_duplicates(subset=['text_clean'])
@@ -99,38 +99,38 @@ datasets = [
         ),
     ),
     KaggleTxtProvider(
-        "d0rj3228/russian-literature",
+        'd0rj3228/russian-literature',
         lambda df: df.assign(
             is_human=1,
             id=[uuid.uuid4().hex for _ in range(len(df))],
-            lang=["ru"] * len(df),
-        )[["id", "text", "is_human", "lang"]],
+            lang=['ru'] * len(df),
+        )[['id', 'text', 'is_human', 'lang']],
     ),
     KaggleTxtProvider(
-        "artalmaz31/complex-russian-dataset",
+        'artalmaz31/complex-russian-dataset',
         lambda df: df.assign(
             is_human=1,
             id=[uuid.uuid4().hex for _ in range(len(df))],
-            lang=["ru"] * len(df),
-        )[["id", "text", "is_human", "lang"]],
+            lang=['ru'] * len(df),
+        )[['id', 'text', 'is_human', 'lang']],
     ),
     KaggleProvider(
-        "mar1mba/russian-sentiment-dataset",
-        ["sentiment_dataset.csv"],
+        'mar1mba/russian-sentiment-dataset',
+        ['sentiment_dataset.csv'],
         lambda df: df.assign(
             is_human=1,
             id=[uuid.uuid4().hex for _ in range(len(df))],
-            lang=["ru"] * len(df),
-        )[["id", "text", "is_human", "lang"]],
+            lang=['ru'] * len(df),
+        )[['id', 'text', 'is_human', 'lang']],
     ),
     KaggleProvider(
-        "vsevolodbogodist/data-jokes",
-        ["dataset.csv"],
+        'vsevolodbogodist/data-jokes',
+        ['dataset.csv'],
         lambda df: df.assign(
             is_human=1,
             id=[uuid.uuid4().hex for _ in range(len(df))],
-            lang=["ru"] * len(df),
-        )[["id", "text", "is_human", "lang"]],
+            lang=['ru'] * len(df),
+        )[['id', 'text', 'is_human', 'lang']],
     ),
     # HuggingFace datasets
     HuggingFaceProvider(
@@ -190,10 +190,8 @@ else:
     print('Creating datasets locally...')
 
     datasets_df = [dataset.get_df() for dataset in datasets]
-    print(sum(len(dataset) for dataset in datasets_df))
     merged_df = pd.concat(datasets_df, ignore_index=True)
     merged_df = merged_df.drop_duplicates(subset=['text']).reset_index(drop=True)
-    print(f'{merged_df.size=}', f'{len(merged_df)=}')
 
     SAMPLE_SIZE = 100
     sample_df = merged_df.sample(n=SAMPLE_SIZE, random_state=0)

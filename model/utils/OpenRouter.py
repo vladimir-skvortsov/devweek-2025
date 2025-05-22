@@ -1,7 +1,8 @@
 import os
-from pydantic import Field, SecretStr
-from langchain_openai import ChatOpenAI
+
 from langchain_core.utils.utils import secret_from_env
+from langchain_openai import ChatOpenAI
+from pydantic import Field, SecretStr
 
 
 class OpenRouter(ChatOpenAI):

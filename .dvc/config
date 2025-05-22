@@ -1,0 +1,5 @@
+[core]
+    remote = ycstore
+['remote "ycstore"']
+    url = s3://devweek-2025-datasets/
+    endpointurl = https://storage.yandexcloud.net
