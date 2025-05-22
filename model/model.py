@@ -30,9 +30,7 @@ class ExplanationSchema(BaseModel):
 
 class SuggestionsSchema(BaseModel):
     examples: str = Field(
-        ...,
-        description='Recommendations in Russian with examples'
-                    ' of token fixes and suggestions to enhance humanity'
+        ..., description='Recommendations in Russian with examples of token fixes and suggestions to enhance humanity'
     )
 
 
@@ -106,18 +104,15 @@ Also, include general suggestions on how to adjust style, vocabulary, and struct
 Ensure that all corrections and examples are provided in the same language as the original text.
 
 Return strictly a JSON object:
-{{  
-  "examples": "<your recommendations in Russian, paragraphs with examples>"  
+{{
+  "examples": "<your recommendations in Russian, paragraphs with examples>"
 }}
 Do not include any other keys or extra text.
 """
 
 
 suggestions_parser = PydanticOutputParser(pydantic_object=SuggestionsSchema)
-suggestions_prompt = PromptTemplate(
-    template=suggestions_template,
-    input_variables=['score', 'explanation', 'tokens']
-)
+suggestions_prompt = PromptTemplate(template=suggestions_template, input_variables=['score', 'explanation', 'tokens'])
 
 
 class State(TypedDict):
@@ -129,7 +124,7 @@ class State(TypedDict):
     examples: str
 
 
-EVALUATOR_WEIGHTS = {'openai/o4-mini': 0.64, 'anthropic/claude-3.7-sonnet': 0.60, 'transformer': 0.72}
+EVALUATOR_WEIGHTS = {'openai/o4-mini': 0.64, 'anthropic/claude-3.7-sonnet': 0.60, 'transformer': 0.84}
 NORMALIZED_WEIGHTS = [w / sum(EVALUATOR_WEIGHTS.values()) for w in EVALUATOR_WEIGHTS.values()]
 
 
@@ -229,6 +224,7 @@ class Model:
         return {'score': weighted_sum}
 
     async def _explanation(self, state: State) -> State:
+        return {'explanation': ''}
         prompt_values = {'text': state['text'], 'score': round(state['score'] * 100, 1)}
 
         tpl = explanation_prompt.format(**prompt_values)
@@ -242,19 +238,18 @@ class Model:
             return {'explanation': text_resp}
 
     async def _token_analysis(self, state: State) -> State:
+        return {'tokens': []}
         tokens = analyze_text_with_gradcam(state['text'])
         return {'tokens': tokens}
 
     async def _suggestions(self, state: State) -> State:
+        return {'examples': ''}
         tokens = [
-            token for token in state['tokens']
+            token
+            for token in state['tokens']
             if len(token['token']) >= 3 and token['ai_prob'] > 0.4 and not set('#,.').intersection(token['token'])
         ]
-        prompt_values = {
-            'score': round(state['score'] * 100, 1),
-            'explanation': state['explanation'],
-            'tokens': tokens
-        }
+        prompt_values = {'score': round(state['score'] * 100, 1), 'explanation': state['explanation'], 'tokens': tokens}
         tpl = suggestions_prompt.format(**prompt_values)
         resp = await self.suggestions_llm.ainvoke(tpl)
         text_resp = getattr(resp, 'content', str(resp))
