@@ -20,8 +20,8 @@ function App() {
   const [isSharedContent, setIsSharedContent] = useState(false);
 
   const [selectedModels, setSelectedModels] = useState({
-    gpt: false,
-    claude: false,
+    gpt: true,
+    claude: true,
   });
 
   const handleModelChange = useCallback((model) => {
