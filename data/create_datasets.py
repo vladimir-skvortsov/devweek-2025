@@ -152,10 +152,8 @@ else:
     print('Creating datasets locally...')
 
     datasets_df = [dataset.get_df() for dataset in datasets]
-    print(sum(len(dataset) for dataset in datasets_df))
     merged_df = pd.concat(datasets_df, ignore_index=True)
     merged_df = merged_df.drop_duplicates(subset=['text']).reset_index(drop=True)
-    print(f'{merged_df.size=}', f'{len(merged_df)=}')
 
     SAMPLE_SIZE = 100
     sample_df = merged_df.sample(n=SAMPLE_SIZE, random_state=0)
