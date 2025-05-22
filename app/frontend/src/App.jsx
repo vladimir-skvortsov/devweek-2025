@@ -167,9 +167,12 @@ function App() {
         setExplanation(data.explanation);
         setTokens(data.tokens);
         setExamples(data.examples);
+
+        event.target.value = '';
       } catch (err) {
         setError('Failed to analyze file. Please try again.');
         console.error(err);
+        event.target.value = '';
       } finally {
         setLoading(false);
       }
