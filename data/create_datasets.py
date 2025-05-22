@@ -4,7 +4,7 @@ import pandas as pd
 import argparse
 from dotenv import load_dotenv
 
-from providers import KaggleProvider, HuggingFaceProvider, FileProvider, KaggleCompetitionProvider
+from providers import KaggleProvider, HuggingFaceProvider, FileProvider, KaggleCompetitionProvider, KaggleTxtProvider
 from S3Client import S3Client
 
 parser = argparse.ArgumentParser(
@@ -97,6 +97,40 @@ datasets = [
             .drop_duplicates(subset=['text_clean'])
             .drop(columns=['generated', 'text_clean'])[['id', 'text', 'is_human', 'lang']]
         ),
+    ),
+    KaggleTxtProvider(
+        "d0rj3228/russian-literature",
+        lambda df: df.assign(
+            is_human=1,
+            id=[uuid.uuid4().hex for _ in range(len(df))],
+            lang=["ru"] * len(df),
+        )[["id", "text", "is_human", "lang"]],
+    ),
+    KaggleTxtProvider(
+        "artalmaz31/complex-russian-dataset",
+        lambda df: df.assign(
+            is_human=1,
+            id=[uuid.uuid4().hex for _ in range(len(df))],
+            lang=["ru"] * len(df),
+        )[["id", "text", "is_human", "lang"]],
+    ),
+    KaggleProvider(
+        "mar1mba/russian-sentiment-dataset",
+        ["sentiment_dataset.csv"],
+        lambda df: df.assign(
+            is_human=1,
+            id=[uuid.uuid4().hex for _ in range(len(df))],
+            lang=["ru"] * len(df),
+        )[["id", "text", "is_human", "lang"]],
+    ),
+    KaggleProvider(
+        "vsevolodbogodist/data-jokes",
+        ["dataset.csv"],
+        lambda df: df.assign(
+            is_human=1,
+            id=[uuid.uuid4().hex for _ in range(len(df))],
+            lang=["ru"] * len(df),
+        )[["id", "text", "is_human", "lang"]],
     ),
     # HuggingFace datasets
     HuggingFaceProvider(

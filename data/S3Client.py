@@ -27,7 +27,7 @@ class S3Client:
 
     def upload_df(self, df: pd.DataFrame, key: str):
         buffer = BytesIO()
-        df.to_parquet(buffer)
+        df.to_parquet(buffer, index=False)
         buffer.seek(0)
         self.s3.upload_fileobj(buffer, self.bucket, key)
 

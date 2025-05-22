@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 from pathlib import Path
 from S3Client import S3Client
 import utils
+import glob
+from charset_normalizer import from_bytes
 
 load_dotenv()
 
@@ -36,6 +38,9 @@ class Provider(ABC):
         df = self.transform_func(df)
 
         df = self._filter(df)
+
+        if "__index_level_0__" in df.columns:
+            df = df.drop(columns=["__index_level_0__"])
 
         print(f'Caching {self.dataset_id} {cache_key}')
         self.s3.upload_df(df, cache_key)
@@ -90,6 +95,27 @@ class KaggleCompetitionProvider(Provider):
             force_download=False,
         )
         return pd.read_csv(csv_path)
+
+
+class KaggleTxtProvider(Provider):
+    def __init__(self, dataset_id: str, transform_func: Callable[[pd.DataFrame], pd.DataFrame]):
+        super().__init__(f'kaggle_txt_{dataset_id}', transform_func)
+        self.dataset_id = dataset_id
+
+    def _download(self) -> pd.DataFrame:
+        path = kagglehub.dataset_download(self.dataset_id)
+        txt_files = glob.glob(os.path.join(path, "**", "*.txt"), recursive=True)
+        if not txt_files:
+            raise RuntimeError(f"No .txt files found in {self.dataset_id}")
+        rows = []
+        for fp in txt_files:
+            raw = Path(fp).read_bytes()
+            try:
+                text = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                text = from_bytes(raw).best().output()  # there are strange symbols (Old Russian, etc.), observe this
+            rows.append({"text": text})
+        return pd.DataFrame(rows)
 
 
 class HuggingFaceProvider(Provider):
