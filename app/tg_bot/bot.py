@@ -93,20 +93,46 @@ async def process_analysis(chat_id: int, score: float, record_id: str):
     await bot.send_message(chat_id, f'Оценка: {score}%.\nВыберите, что показать:', reply_markup=result_menu(record_id))
 
 
+SUPPORTED_MIMES = {
+    'application/pdf',
+    'text/plain',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',  # .docx
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',  # .pptx
+    'image/png',
+    'image/jpeg',
+}
+SUPPORTED_EXT = {'pdf', 'txt', 'docx', 'pptx', 'png', 'jpg', 'jpeg'}
+
+
 @dp.message_handler(state=Form.waiting_for_file, content_types=[ContentType.DOCUMENT, ContentType.PHOTO])
 async def handle_file(message: types.Message, state: FSMContext):
     await message.answer('Обрабатываем файл...', reply_markup=ReplyKeyboardRemove())
 
     bio = BytesIO()
     if message.document:
-        await message.document.download(destination=bio)
         filename = message.document.file_name
         mime = message.document.mime_type
-    else:
+        ext = filename.rsplit('.', 1)[-1].lower()
+        logging.info(mime)
+        if mime not in SUPPORTED_MIMES or ext not in SUPPORTED_EXT:
+            await message.answer(
+                '❌ Неподдерживаемый формат.\n'
+                f'Поддерживаемые типы: {", ".join(sorted(SUPPORTED_EXT))}',
+                reply_markup=main_menu()
+            )
+            return await state.finish()
+        await message.document.download(destination_file=bio)
+    elif message.photo:
         photo = message.photo[-1]
-        await photo.download(destination=bio)
+        await photo.download(destination_file=bio)
         filename = 'photo.jpg'
         mime = 'image/jpeg'
+    else:
+        await message.answer(
+            'Пожалуйста, пришлите файл формата PDF, DOCX, TXT или изображение.',
+            reply_markup=main_menu()
+        )
+        return await state.finish()
     bio.seek(0)
 
     data = aiohttp.FormData()
@@ -115,14 +141,23 @@ async def handle_file(message: types.Message, state: FSMContext):
         async with session.post(f'{API_URL}/api/v1/score/file', data=data) as resp:
             result = await resp.json()
 
-    rec = db.create_record(result['text'], result['tokens'], result['explanation'], result['score'], result['examples'])
+    if result.get('text', 0) == 0:
+        await bot.send_message(
+            message.chat.id,
+            'Ошибка при разборе. Повторите запрос',
+            reply_markup=main_menu()
+        )
+
+        await state.finish()
+    rec = db.create_record(result['text'], result['tokens'], result['explanation'], result['score'],
+                           result['examples'])
     record_id = rec['fields']['record_id']
 
     id = str(db.get_user_id_by_tg_id(message.from_user.id))
     db.link_user_to_record(user_id=id, record_id=record_id)
 
     await process_analysis(message.chat.id, result['score'], record_id)
-    msg = await bot.send_message(
+    await bot.send_message(
         message.chat.id,
         'Готов к использованию 😃',
         reply_markup=main_menu()
@@ -148,7 +183,7 @@ async def handle_text(message: types.Message, state: FSMContext):
     db.link_user_to_record(user_id=str(id), record_id=record_id)
 
     await process_analysis(message.chat.id, result['score'], record_id)
-    msg = await bot.send_message(
+    await bot.send_message(
         message.chat.id,
         'Готов к использованию 😃',
         reply_markup=main_menu()
