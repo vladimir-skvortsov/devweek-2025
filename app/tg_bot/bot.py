@@ -113,7 +113,6 @@ async def handle_file(message: types.Message, state: FSMContext):
         filename = message.document.file_name
         mime = message.document.mime_type
         ext = filename.rsplit('.', 1)[-1].lower()
-        logging.info(mime)
         if mime not in SUPPORTED_MIMES or ext not in SUPPORTED_EXT:
             await message.answer(
                 '❌ Неподдерживаемый формат.\n'
@@ -173,7 +172,7 @@ async def handle_text(message: types.Message, state: FSMContext):
     async with aiohttp.ClientSession() as session:
         resp = await session.post(
             f'{API_URL}/api/v1/score/text',
-            json={'text': text}
+            json={'text': text, 'models': ['gpt', 'claude']}
         )
         result = await resp.json()
     rec = db.create_record(text, result['tokens'], result['explanation'], result['score'], result['examples'])

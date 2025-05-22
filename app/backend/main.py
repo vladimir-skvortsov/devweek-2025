@@ -36,7 +36,9 @@ app.add_middleware(
 
 class TextRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=10000)
-
+    models: list = Field(
+        ...,
+    )
     @validator('text')
     def validate_text_length(cls, v):
         if len(v.strip()) == 0:
@@ -62,7 +64,7 @@ class ScoreTextResponse(BaseModel):
 @app.post('/api/v1/score/text', response_model=ScoreTextResponse)
 async def root(request: TextRequest):
     try:
-        result = await model.ainvoke(request.text)
+        result = await model.ainvoke(request.text, request.models)
 
         return {
             'score': result['score'],
@@ -116,7 +118,7 @@ async def analyze_file(file: UploadFile = File(...)):
         if len(text) > 10000:
             raise HTTPException(status_code=400, detail='Extracted text length cannot exceed 10000 characters')
 
-        result = await model.ainvoke(text)
+        result = await model.ainvoke(text, ['gpt', 'claude'])
 
         db.create_record(text, result['tokens'], result['explanation'], result['score'], result['examples'])
 

@@ -121,6 +121,7 @@ class State(TypedDict):
     explanation: str
     tokens: list[dict[str, float]]
     examples: str
+    models: list
 
 
 EVALUATOR_WEIGHTS = {'openai/o4-mini': 0.64, 'anthropic/claude-3.7-sonnet': 0.60, 'transformer': 0.84}
@@ -138,14 +139,20 @@ class Model:
         self.transformer = self.transformer.to(self.device)
         self.transformer.eval()  # Set to evaluation mode
 
-        self.evaluator_llms = [
-            OpenRouter(model_name='openai/o4-mini', temperature=0),
-            OpenRouter(model_name='anthropic/claude-3.7-sonnet', temperature=0),
-        ]
-        self.evaluator_chains = [
-            evaluator_prompt | evaluator_llm | StrOutputParser() | JsonExtractor() | evaluator_parser
-            for evaluator_llm in self.evaluator_llms
-        ]
+        self.evaluator_llms = {
+            'gpt': OpenRouter(model_name='openai/o4-mini', temperature=0),
+            'claude': OpenRouter(model_name='anthropic/claude-3.7-sonnet', temperature=0),
+        }
+        self.evaluator_chains = {
+            name: (
+                    evaluator_prompt
+                    | evaluator_llm
+                    | StrOutputParser()
+                    | JsonExtractor()
+                    | evaluator_parser
+            )
+            for name, evaluator_llm in self.evaluator_llms.items()
+        }
 
         self.explanation_llm = OpenRouter(model_name='openai/o4-mini', temperature=0)
 
@@ -204,8 +211,11 @@ class Model:
 
     async def _evaluators(self, state: State) -> State:
         # Get scores from all evaluators
-        llm_tasks = [self._evaluate_chain(chain, state['text']) for chain in self.evaluator_chains]
-        llm_scores = await asyncio.gather(*llm_tasks)
+        llm_scores = []
+        for model in state['models']:
+            res = await self._evaluate_chain(self.evaluator_chains[model], state['text'])
+            llm_scores.append(res)
+
         transformer_score = await self._evaluate_transformer(state['text'])
 
         # Combine all scores
@@ -223,7 +233,6 @@ class Model:
         return {'score': weighted_sum}
 
     async def _explanation(self, state: State) -> State:
-        return {'explanation': ''}
         prompt_values = {'text': state['text'], 'score': round(state['score'] * 100, 1)}
 
         tpl = explanation_prompt.format(**prompt_values)
@@ -237,12 +246,10 @@ class Model:
             return {'explanation': text_resp}
 
     async def _token_analysis(self, state: State) -> State:
-        return {'tokens': []}
         tokens = analyze_text_with_gradcam(state['text'])
         return {'tokens': tokens}
 
     async def _suggestions(self, state: State) -> State:
-        return {'examples': ''}
         tokens = [
             token
             for token in state['tokens']
@@ -258,5 +265,5 @@ class Model:
         except Exception:
             return {'examples': text_resp}
 
-    async def ainvoke(self, text: str) -> Dict:
-        return await self.model.ainvoke({'text': text})
+    async def ainvoke(self, text: str, models: list) -> Dict:
+        return await self.model.ainvoke({'text': text, 'models': models})
