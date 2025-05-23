@@ -205,6 +205,8 @@ async def analyze_file(file: UploadFile = File(...), models: str = None):
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException as e:
+        raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'Ошибка обработки файла: {str(e)}')
 
