@@ -98,11 +98,11 @@ class ScoreFileResponse(BaseModel):
 async def analyze_file(file: UploadFile = File(...), models: str = None):
     content = await file.read()
 
-    if models.strip():
+    if models is not None and models.strip():
         models_list = [m.strip() for m in models.split(',') if m.strip()]
         if not models_list:
             models_list = ['gpt', 'claude']
-        elif not all(model in ['gpt', 'claude'] for model in models_list):
+        elif not all(m in ['gpt', 'claude'] for m in models_list):
             raise HTTPException(status_code=400, detail='Invalid models. Supported models are: gpt, claude')
     else:
         models_list = []
