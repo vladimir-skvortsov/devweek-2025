@@ -42,7 +42,7 @@ function App() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/text/get?id=${id}`);
+      const response = await fetch(`https://dw25.vladimirskvortsov.com/api/v1/text/get?id=${id}`);
       if (!response.ok) {
         throw new Error('Failed to fetch shared data');
       }
@@ -74,7 +74,7 @@ function App() {
     setShareLoading(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:8000/api/v1/text/share', {
+      const response = await fetch('https://dw25.vladimirskvortsov.com/api/v1/text/share', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -112,7 +112,7 @@ function App() {
     setSelectedToken(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/score/text', {
+      const response = await fetch('https://dw25.vladimirskvortsov.com/api/v1/score/text', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -153,13 +153,15 @@ function App() {
         formData.append('file', file);
 
         const modelsParam = getModelsArray().join(',');
-        const response = await fetch(`http://localhost:8000/api/v1/score/file?models=${modelsParam}`, {
+        const response = await fetch(`https://dw25.vladimirskvortsov.com/api/v1/score/file?models=${modelsParam}`, {
           method: 'POST',
           body: formData,
         });
 
         if (!response.ok) {
-          throw new Error('Failed to analyze file');
+          const data = await response.json();
+          setError(data.detail);
+          return;
         }
 
         const data = await response.json();
@@ -172,7 +174,7 @@ function App() {
 
         event.target.value = '';
       } catch (err) {
-        setError('Failed to analyze file. Please try again.');
+        setError('Не удалось проанализировать файл, попробуйте еще раз');
         console.error(err);
         event.target.value = '';
       } finally {
