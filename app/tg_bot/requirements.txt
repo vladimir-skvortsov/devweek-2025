@@ -1,0 +1,5 @@
+aiogram==2.24
+aiohttp
+pyairtable>=2.0.0
+Pillow>=10.0.0
+python-dotenv>=1.0.0

@@ -1,9 +1,11 @@
+
+from io import BytesIO
+
 import docx
 import PyPDF2
-from io import BytesIO
-from pptx import Presentation
 import pytesseract
 from PIL import Image
+from pptx import Presentation
 
 
 def extract_text_from_txt(content: bytes) -> str:
@@ -36,6 +38,7 @@ def extract_text_from_pptx(content: bytes) -> str:
     return '\n'.join(text)
 
 
+# TODO: extract text from image using Gemini
 def extract_text_from_image(content: bytes) -> str:
     try:
         # Open the image using PIL

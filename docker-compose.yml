@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: app/backend/Dockerfile
+    container_name: backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+
+  frontend:
+    build:
+      context: ./app/frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "4173:4173"
+
+  telegram_bot:
+    build:
+      context: .
+      dockerfile: app/tg_bot/Dockerfile
+    container_name: telegram_bot
+    env_file:
+      - .env
+    depends_on:
+      - backend

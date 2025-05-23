@@ -1,16 +1,115 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import Header from './components/Header';
+import TextInput from './components/TextInput';
+import TokenInfo from './components/TokenInfo';
+import AnalysisResult from './components/AnalysisResult';
 
 function App() {
+  const [searchParams] = useSearchParams();
   const [text, setText] = useState('');
   const [score, setScore] = useState(null);
+  const [explanation, setExplanation] = useState('');
+  const [tokens, setTokens] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedToken, setSelectedToken] = useState(null);
+  const [examples, setExamples] = useState('');
+  const [shareLink, setShareLink] = useState('');
+  const [shareLoading, setShareLoading] = useState(false);
+  const [isSharedContent, setIsSharedContent] = useState(false);
 
-  const analyzeText = async () => {
+  const [selectedModels, setSelectedModels] = useState({
+    gpt: true,
+    claude: true,
+  });
+
+  const handleModelChange = useCallback((model) => {
+    setSelectedModels((prev) => ({
+      ...prev,
+      [model]: !prev[model],
+    }));
+  }, []);
+
+  const getModelsArray = useCallback(() => {
+    const models = [];
+    if (selectedModels.gpt) models.push('gpt');
+    if (selectedModels.claude) models.push('claude');
+    return models;
+  }, [selectedModels]);
+
+  const fetchSharedData = useCallback(async (id) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/text/get?id=${id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch shared data');
+      }
+      const data = await response.json();
+      setText(data.text);
+      setScore(data.score);
+      setExplanation(data.explanation);
+      setTokens(data.tokens);
+      setExamples(data.examples);
+      setIsSharedContent(true);
+    } catch (err) {
+      setError('Failed to load shared data. Please try again.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const sharedId = searchParams.get('id');
+    if (sharedId) {
+      fetchSharedData(sharedId);
+    }
+  }, [searchParams, fetchSharedData]);
+
+  const handleShare = useCallback(async () => {
+    if (!text.trim() || score === null) return;
+
+    setShareLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/text/share', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text,
+          score,
+          explanation,
+          tokens,
+          examples,
+          models: getModelsArray(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to share text');
+      }
+
+      const data = await response.json();
+      const shareUrl = `${window.location.origin}${window.location.pathname}?id=${data.id}`;
+      setShareLink(shareUrl);
+    } catch (err) {
+      setError('Failed to share text. Please try again.');
+      console.error(err);
+    } finally {
+      setShareLoading(false);
+    }
+  }, [text, score, explanation, tokens, examples, getModelsArray]);
+
+  const analyzeText = useCallback(async () => {
     if (!text.trim()) return;
 
     setLoading(true);
     setError(null);
+    setSelectedToken(null);
 
     try {
       const response = await fetch('http://localhost:8000/api/v1/score/text', {
@@ -18,7 +117,7 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, models: getModelsArray() }),
       });
 
       if (!response.ok) {
@@ -26,135 +125,152 @@ function App() {
       }
 
       const data = await response.json();
+
       setScore(data.score);
+      setExplanation(data.explanation);
+      setTokens(data.tokens);
+      setExamples(data.examples);
+      setIsSharedContent(false);
     } catch (err) {
       setError('Failed to analyze text. Please try again.');
       console.error(err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [text, getModelsArray]);
 
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+  const handleFileUpload = useCallback(
+    async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
 
-    setLoading(true);
-    setError(null);
+      setLoading(true);
+      setError(null);
+      setSelectedToken(null);
 
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
 
-      const response = await fetch('http://localhost:8000/api/v1/score/file', {
-        method: 'POST',
-        body: formData,
-      });
+        const modelsParam = getModelsArray().join(',');
+        const response = await fetch(`http://localhost:8000/api/v1/score/file?models=${modelsParam}`, {
+          method: 'POST',
+          body: formData,
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to analyze file');
+        if (!response.ok) {
+          throw new Error('Failed to analyze file');
+        }
+
+        const data = await response.json();
+        setScore(data.score);
+        setText(data.text);
+        setExplanation(data.explanation);
+        setTokens(data.tokens);
+        setExamples(data.examples);
+        setIsSharedContent(false);
+
+        event.target.value = '';
+      } catch (err) {
+        setError('Failed to analyze file. Please try again.');
+        console.error(err);
+        event.target.value = '';
+      } finally {
+        setLoading(false);
       }
+    },
+    [getModelsArray]
+  );
 
-      const data = await response.json();
-      setScore(data.score);
-      setText(data.text);
-    } catch (err) {
-      setError('Failed to analyze file. Please try again.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getScoreColor = (score) => {
-    if (score === null) return 'bg-gray-200';
-    if (score < 0.3) return 'bg-red-500';
-    if (score < 0.7) return 'bg-yellow-500';
-    return 'bg-green-500';
-  };
-
-  const getScoreText = (score) => {
-    if (score === null) return 'Не проанализировано';
-    if (score < 0.3) return 'Вероятно написано ИИ';
-    if (score < 0.7) return 'Неопределенно';
-    return 'Вероятно написано человеком';
-  };
-
-  const handleTextChange = (e) => {
-    setText(e.target.value);
+  const handleTextChange = useCallback((e) => {
+    const newText = e.target.value.slice(0, 10000);
+    setText(newText);
     setScore(null);
+    setTokens([]);
+    setExplanation('');
+    setExamples('');
     setError(null);
-  };
+    setSelectedToken(null);
+    setIsSharedContent(false);
+  }, []);
+
+  const handleClearText = useCallback(() => {
+    setText('');
+    setScore(null);
+    setTokens([]);
+    setExplanation('');
+    setExamples('');
+    setError(null);
+    setSelectedToken(null);
+    setIsSharedContent(false);
+  }, []);
+
+  const handleTokenClick = useCallback((token) => {
+    setSelectedToken(token);
+  }, []);
+
+  const textInputProps = useMemo(
+    () => ({
+      text,
+      tokens,
+      loading,
+      onTextChange: handleTextChange,
+      onClearText: handleClearText,
+      onFileUpload: handleFileUpload,
+      onTokenClick: handleTokenClick,
+      onAnalyze: analyzeText,
+    }),
+    [text, tokens, loading, handleTextChange, handleClearText, handleFileUpload, handleTokenClick, analyzeText]
+  );
+
+  const analysisResultProps = useMemo(
+    () => ({
+      score,
+      explanation,
+      examples,
+      tokens,
+      shareLink,
+      shareLoading,
+      onShare: handleShare,
+      isSharedContent,
+    }),
+    [score, explanation, examples, tokens, shareLink, shareLoading, handleShare, isSharedContent]
+  );
 
   return (
     <div className='min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8'>
       <div className='max-w-3xl mx-auto'>
-        <div className='text-center mb-8'>
-          <h1 className='text-3xl font-bold text-gray-900 mb-2'>AI Text Detector</h1>
-          <p className='text-gray-600'>
-            Введите текст или загрузите файл, чтобы определить, написан ли он ИИ или человеком
-          </p>
-        </div>
+        <Header />
 
-        <div className='bg-white rounded-lg shadow-lg p-6'>
-          <textarea
-            className='w-full h-48 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
-            placeholder='Введите текст для анализа...'
-            value={text}
-            onChange={handleTextChange}
-          />
-
-          <div className='mt-4 flex justify-center space-x-4'>
-            <label
-              className={`px-6 py-2 rounded-lg font-medium transition-colors relative group flex items-center space-x-2
-              ${loading ? 'text-gray-400 cursor-not-allowed' : 'cursor-pointer text-gray-900 hover:bg-gray-100'}`}
-            >
-              <svg xmlns='http://www.w3.org/2000/svg' className='h-5 w-5' viewBox='0 0 20 20' fill='currentColor'>
-                <path
-                  fillRule='evenodd'
-                  d='M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z'
-                  clipRule='evenodd'
-                />
-              </svg>
-              <span>Загрузить файл</span>
-              <div className='absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none'>
-                Поддерживаемые форматы:
-                <br />
-                .txt, .doc, .docs, .pdf, .pptx
-                <br />
-                .png, .jpg, .jpeg, .gif, .bmp
-              </div>
+        <div className='bg-white rounded-xl shadow-lg p-6'>
+          <div className='flex gap-4 mb-4'>
+            <label className='inline-flex items-center cursor-pointer'>
               <input
-                type='file'
-                className='hidden'
-                onChange={handleFileUpload}
-                accept='.txt,.doc,.docx,.pdf,.pptx,.png,.jpg,.jpeg,.gif,.bmp'
-                disabled={loading}
+                type='checkbox'
+                checked={selectedModels.gpt}
+                onChange={() => handleModelChange('gpt')}
+                className='form-checkbox h-5 w-5 text-[#4F46E5] cursor-pointer'
               />
+              <span className='ml-2 text-gray-700'>GPT</span>
             </label>
-
-            <button
-              onClick={analyzeText}
-              disabled={loading || !text.trim()}
-              className={`px-6 py-2 rounded-lg font-medium text-white transition-colors
-                ${loading || !text.trim() ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
-            >
-              {loading ? 'Анализ...' : 'Анализировать текст'}
-            </button>
+            <label className='inline-flex items-center cursor-pointer cursor-pointer'>
+              <input
+                type='checkbox'
+                checked={selectedModels.claude}
+                onChange={() => handleModelChange('claude')}
+                className='form-checkbox h-5 w-5 text-[#4F46E5] cursor-pointer'
+              />
+              <span className='ml-2 text-gray-700'>Claude</span>
+            </label>
           </div>
+
+          <TextInput {...textInputProps} />
+
+          <TokenInfo selectedToken={selectedToken} />
 
           {error && <div className='mt-4 text-red-600 text-center'>{error}</div>}
 
-          {score !== null && (
-            <div className='mt-6'>
-              <div className='flex items-center justify-center space-x-4'>
-                <div className={`w-24 h-24 rounded-full ${getScoreColor(score)} flex items-center justify-center`}>
-                  <span className='text-white text-2xl font-bold'>{(score * 100).toFixed(1)}%</span>
-                </div>
-                <div className='text-lg font-medium text-gray-700'>{getScoreText(score)}</div>
-              </div>
-            </div>
-          )}
+          <AnalysisResult {...analysisResultProps} />
         </div>
       </div>
     </div>
