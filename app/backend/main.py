@@ -43,6 +43,7 @@ app.add_middleware(
 # Rate limiting configuration
 RATE_LIMIT_WINDOW = 60  # Time window in seconds
 MAX_REQUESTS_PER_WINDOW = 10  # Maximum requests allowed per window
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB in bytes
 IP_REQUEST_COUNTS: dict[str, tuple[int, datetime]] = defaultdict(lambda: (0, datetime.now()))
 
 
@@ -136,6 +137,12 @@ class ScoreFileResponse(BaseModel):
 @app.post('/api/v1/score/file', response_model=ScoreFileResponse)
 async def analyze_file(file: UploadFile = File(...), models: str = None):
     content = await file.read()
+
+    # Check file size
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400, detail=f'File too large. Maximum file size is {MAX_FILE_SIZE // (1024 * 1024)}MB'
+        )
 
     if models is not None and models.strip():
         models_list = [m.strip() for m in models.split(',') if m.strip()]
