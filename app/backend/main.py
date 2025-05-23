@@ -67,7 +67,10 @@ async def rate_limit_middleware(request: Request, call_next):
     # Check if rate limit exceeded
     if count > MAX_REQUESTS_PER_WINDOW:
         return JSONResponse(
-            status_code=429, content={'detail': f'Too many requests. Please try again in {RATE_LIMIT_WINDOW} seconds.'}
+            status_code=429,
+            content={
+                'detail': f'Слишком много запросов. Пожалуйста, попробуйте снова через {RATE_LIMIT_WINDOW} секунд.'
+            },
         )
 
     # Clean up old entries (optional, to prevent memory growth)
@@ -88,9 +91,9 @@ class TextRequest(BaseModel):
     @validator('text')
     def validate_text_length(cls, v):
         if len(v.strip()) == 0:
-            raise ValueError('Text cannot be empty')
+            raise ValueError('Текст не может быть пустым')
         if len(v) > 10000:
-            raise ValueError('Text length cannot exceed 10000 characters')
+            raise ValueError('Длина текста не может превышать 10000 символов')
         return v
 
 
@@ -141,7 +144,8 @@ async def analyze_file(file: UploadFile = File(...), models: str = None):
     # Check file size
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(
-            status_code=400, detail=f'File too large. Maximum file size is {MAX_FILE_SIZE // (1024 * 1024)}MB'
+            status_code=400,
+            detail=f'Файл слишком большой. Максимальный размер файла: {MAX_FILE_SIZE // (1024 * 1024)}MB',
         )
 
     if models is not None and models.strip():
@@ -149,7 +153,7 @@ async def analyze_file(file: UploadFile = File(...), models: str = None):
         if not models_list:
             models_list = ['gpt', 'claude']
         elif not all(m in ['gpt', 'claude'] for m in models_list):
-            raise HTTPException(status_code=400, detail='Invalid models. Supported models are: gpt, claude')
+            raise HTTPException(status_code=400, detail='Недопустимые модели. Поддерживаемые модели: gpt, claude')
     else:
         models_list = []
     models_list += ['transformer']
@@ -173,14 +177,14 @@ async def analyze_file(file: UploadFile = File(...), models: str = None):
         else:
             raise HTTPException(
                 status_code=400,
-                detail=f'Unsupported file type: {mime_type}. Supported types are: images (PNG, JPEG, etc.), text/plain, application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                detail=f'Неподдерживаемый тип файла: {mime_type}. Поддерживаемые типы: изображения (PNG, JPEG и т.д.), text/plain, application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.presentationml.presentation',
             )
 
         if not text.strip():
-            raise HTTPException(status_code=400, detail='No text content found in the file')
+            raise HTTPException(status_code=400, detail='В файле не найден текстовый контент')
 
         if len(text) > 10000:
-            raise HTTPException(status_code=400, detail='Extracted text length cannot exceed 10000 characters')
+            raise HTTPException(status_code=400, detail='Длина извлеченного текста не может превышать 10000 символов')
 
         result = await model.ainvoke(text, models_list)
 
@@ -195,11 +199,14 @@ async def analyze_file(file: UploadFile = File(...), models: str = None):
             'examples': result['examples'],
         }
     except UnicodeDecodeError:
-        raise HTTPException(status_code=400, detail='Invalid text encoding. Please ensure the file is UTF-8 encoded.')
+        raise HTTPException(
+            status_code=400,
+            detail='Некорректная кодировка текста. Пожалуйста, убедитесь, что файл закодирован в UTF-8.',
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f'Error processing file: {str(e)}')
+        raise HTTPException(status_code=500, detail=f'Ошибка обработки файла: {str(e)}')
 
 
 class ShareRequest(BaseModel):
@@ -212,9 +219,9 @@ class ShareRequest(BaseModel):
     @validator('text')
     def validate_text_length(cls, v):
         if len(v.strip()) == 0:
-            raise ValueError('Text cannot be empty')
+            raise ValueError('Текст не может быть пустым')
         if len(v) > 10000:
-            raise ValueError('Text length cannot exceed 10000 characters')
+            raise ValueError('Длина текста не может превышать 10000 символов')
         return v
 
 
@@ -237,7 +244,7 @@ async def share_text(request: ShareRequest):
 async def get_shared_text(id: str):
     record = db.get_record_by_id(id)
     if not record:
-        raise HTTPException(status_code=404, detail='Record not found')
+        raise HTTPException(status_code=404, detail='Запись не найдена')
 
     return {
         'text': record['text'],
