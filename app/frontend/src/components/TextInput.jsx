@@ -53,7 +53,7 @@ export default function TextInput({
           <div className='absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none'>
             Поддерживаемые форматы:
             <br />
-            .txt, .doc, .docs, .pdf, .pptx
+            .txt, .docx, .pdf, .pptx
             <br />
             .png, .jpg, .jpeg, .gif, .bmp
           </div>
@@ -61,7 +61,7 @@ export default function TextInput({
             type='file'
             className='hidden'
             onChange={onFileUpload}
-            accept='.txt,.doc,.docx,.pdf,.pptx,.png,.jpg,.jpeg,.gif,.bmp'
+            accept='.txt,.docx,.pdf,.pptx,.png,.jpg,.jpeg,.gif,.bmp'
             disabled={loading}
           />
         </label>
