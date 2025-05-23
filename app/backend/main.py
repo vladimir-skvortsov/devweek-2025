@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
-import json
+from datetime import datetime, timedelta
+from collections import defaultdict
 
 project_root = str(Path(__file__).parent.parent.parent)
 sys.path.append(project_root)
@@ -8,8 +9,9 @@ sys.path.append(project_root)
 import magic
 import torch
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, validator
 
 from app.backend.config import PROJECT_NAME
@@ -37,6 +39,43 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
+
+# Rate limiting configuration
+RATE_LIMIT_WINDOW = 60  # Time window in seconds
+MAX_REQUESTS_PER_WINDOW = 10  # Maximum requests allowed per window
+IP_REQUEST_COUNTS: dict[str, tuple[int, datetime]] = defaultdict(lambda: (0, datetime.now()))
+
+
+@app.middleware('http')
+async def rate_limit_middleware(request: Request, call_next):
+    client_ip = request.client.host
+
+    # Get current count and timestamp for this IP
+    count, timestamp = IP_REQUEST_COUNTS[client_ip]
+    current_time = datetime.now()
+
+    # Reset counter if window has passed
+    if current_time - timestamp > timedelta(seconds=RATE_LIMIT_WINDOW):
+        count = 0
+        timestamp = current_time
+
+    # Increment counter
+    count += 1
+    IP_REQUEST_COUNTS[client_ip] = (count, timestamp)
+
+    # Check if rate limit exceeded
+    if count > MAX_REQUESTS_PER_WINDOW:
+        return JSONResponse(
+            status_code=429, content={'detail': f'Too many requests. Please try again in {RATE_LIMIT_WINDOW} seconds.'}
+        )
+
+    # Clean up old entries (optional, to prevent memory growth)
+    if len(IP_REQUEST_COUNTS) > 10000:  # Arbitrary limit
+        current_time = datetime.now()
+        IP_REQUEST_COUNTS.clear()
+
+    response = await call_next(request)
+    return response
 
 
 class TextRequest(BaseModel):
