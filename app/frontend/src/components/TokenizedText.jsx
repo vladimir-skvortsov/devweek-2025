@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 
-const SUSPICIOUS_THRESHOLD = 0.5;
+const SUSPICIOUS_THRESHOLD = 0.2;
 
 const TokenizedText = ({ text, tokens, onTokenClick }) => {
   const [hoveredToken, setHoveredToken] = useState(null);

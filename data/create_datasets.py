@@ -189,11 +189,12 @@ if our_namespace.use_s3:
 else:
     print('Creating datasets locally...')
 
-    datasets_df = [dataset.get_df() for dataset in datasets]
-    merged_df = pd.concat(datasets_df, ignore_index=True)
-    merged_df = merged_df.drop_duplicates(subset=['text']).reset_index(drop=True)
+    # datasets_df = [dataset.get_df() for dataset in datasets]
+    # merged_df = pd.concat(datasets_df, ignore_index=True)
+    # merged_df = merged_df.drop_duplicates(subset=['text']).reset_index(drop=True)
+    merged_df = pd.read_csv('merged.csv', lineterminator='\n')
 
-    SAMPLE_SIZE = 100
+    SAMPLE_SIZE = 250
     sample_df = merged_df.sample(n=SAMPLE_SIZE, random_state=0)
 
 if our_namespace.upload_to_s3:

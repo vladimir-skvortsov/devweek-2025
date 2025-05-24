@@ -238,6 +238,7 @@ class Model:
         return {'score': weighted_sum}
 
     async def _explanation(self, state: State) -> State:
+        return {'explanation': ''}
         prompt_values = {'text': state['text'], 'score': round(state['score'] * 100, 1)}
 
         tpl = explanation_prompt.format(**prompt_values)
@@ -251,10 +252,12 @@ class Model:
             return {'explanation': text_resp}
 
     async def _token_analysis(self, state: State) -> State:
+        return {'tokens': []}
         tokens = analyze_text_with_gradcam(state['text'])
         return {'tokens': tokens}
 
     async def _suggestions(self, state: State) -> State:
+        return {'examples': ''}
         tokens = [
             token
             for token in state['tokens']

@@ -2,6 +2,10 @@ import sys
 from pathlib import Path
 from datetime import datetime, timedelta
 from collections import defaultdict
+import logging
+import uuid
+import os
+from typing import Optional
 
 project_root = str(Path(__file__).parent.parent.parent)
 sys.path.append(project_root)
@@ -13,6 +17,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, validator
+import structlog
 
 from app.backend.config import PROJECT_NAME
 from app.backend.db_client import AirtableClient
@@ -27,18 +32,52 @@ from model.model import Model
 
 load_dotenv()
 
-app = FastAPI(title=PROJECT_NAME)
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-model = Model(device=device)
-db = AirtableClient()
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = structlog.get_logger()
 
+app = FastAPI(
+    title=PROJECT_NAME,
+    docs_url='/api/docs' if os.getenv('ENVIRONMENT') == 'development' else None,
+    redoc_url='/api/redoc' if os.getenv('ENVIRONMENT') == 'development' else None,
+)
+
+# CORS middleware with proper configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
     allow_credentials=True,
-    allow_methods=['*'],
+    allow_methods=['POST', 'GET'],
     allow_headers=['*'],
+    max_age=3600,
 )
+
+
+# Request tracking middleware
+@app.middleware('http')
+async def add_request_id(request: Request, call_next):
+    request_id = str(uuid.uuid4())
+    request.state.request_id = request_id
+    response = await call_next(request)
+    response.headers['X-Request-ID'] = request_id
+    return response
+
+
+# Security headers middleware
+@app.middleware('http')
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Content-Security-Policy'] = "default-src 'self'"
+    return response
+
+
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+model = Model(device=device)
+db = AirtableClient()
 
 # Rate limiting configuration
 RATE_LIMIT_WINDOW = 60  # Time window in seconds
@@ -50,6 +89,7 @@ IP_REQUEST_COUNTS: dict[str, tuple[int, datetime]] = defaultdict(lambda: (0, dat
 @app.middleware('http')
 async def rate_limit_middleware(request: Request, call_next):
     client_ip = request.client.host
+    request_id = getattr(request.state, 'request_id', 'unknown')
 
     # Get current count and timestamp for this IP
     count, timestamp = IP_REQUEST_COUNTS[client_ip]
@@ -66,6 +106,7 @@ async def rate_limit_middleware(request: Request, call_next):
 
     # Check if rate limit exceeded
     if count > MAX_REQUESTS_PER_WINDOW:
+        logger.warning('rate_limit_exceeded', ip=client_ip, request_id=request_id, count=count)
         return JSONResponse(
             status_code=429,
             content={
@@ -73,13 +114,18 @@ async def rate_limit_middleware(request: Request, call_next):
             },
         )
 
-    # Clean up old entries (optional, to prevent memory growth)
-    if len(IP_REQUEST_COUNTS) > 10000:  # Arbitrary limit
+    # Clean up old entries
+    if len(IP_REQUEST_COUNTS) > 10000:
         current_time = datetime.now()
         IP_REQUEST_COUNTS.clear()
+        logger.info('rate_limit_cache_cleared')
 
-    response = await call_next(request)
-    return response
+    try:
+        response = await call_next(request)
+        return response
+    except Exception as e:
+        logger.error('request_error', ip=client_ip, request_id=request_id, error=str(e))
+        raise
 
 
 class TextRequest(BaseModel):
@@ -111,21 +157,26 @@ class ScoreTextResponse(BaseModel):
 
 
 @app.post('/api/v1/score/text', response_model=ScoreTextResponse)
-async def root(request: TextRequest):
+async def root(request: Request, text_request: TextRequest):
     try:
-        models_list = request.models
+        logger.info('text_score_request', request_id=request.state.request_id, text_length=len(text_request.text))
+        models_list = text_request.models
         models_list += ['transformer']
-        result = await model.ainvoke(request.text, models_list)
+        result = await model.ainvoke(text_request.text, models_list)
 
         return {
             'score': result['score'],
             'explanation': result['explanation'],
-            'text': request.text,
+            'text': text_request.text,
             'tokens': result['tokens'],
             'examples': result['examples'],
         }
     except ValueError as e:
+        logger.error('text_score_error', request_id=request.state.request_id, error=str(e))
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error('text_score_unexpected_error', request_id=request.state.request_id, error=str(e))
+        raise HTTPException(status_code=500, detail='Ошибка обработки текста')
 
 
 class ScoreFileResponse(BaseModel):
@@ -138,11 +189,15 @@ class ScoreFileResponse(BaseModel):
 
 
 @app.post('/api/v1/score/file', response_model=ScoreFileResponse)
-async def analyze_file(file: UploadFile = File(...), models: str = None):
+async def analyze_file(request: Request, file: UploadFile = File(...), models: Optional[str] = None):
+    request_id = request.state.request_id
+    logger.info('file_score_request', request_id=request_id, filename=file.filename)
+
     content = await file.read()
 
     # Check file size
     if len(content) > MAX_FILE_SIZE:
+        logger.warning('file_too_large', request_id=request_id, size=len(content))
         raise HTTPException(
             status_code=400,
             detail=f'Файл слишком большой. Максимальный размер файла: {MAX_FILE_SIZE // (1024 * 1024)}MB',
@@ -260,4 +315,4 @@ async def get_shared_text(id: str):
 if __name__ == '__main__':
     import uvicorn
 
-    uvicorn.run(app, host='0.0.0.0', port=8000)
+    uvicorn.run(app, host='0.0.0.0', port=8000, log_level='info', proxy_headers=True, forwarded_allow_ips='*')

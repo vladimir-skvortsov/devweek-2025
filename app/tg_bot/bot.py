@@ -9,9 +9,14 @@ from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
-from aiogram.types import (ContentType, InlineKeyboardButton,
-                           InlineKeyboardMarkup, KeyboardButton,
-                           ReplyKeyboardMarkup, ReplyKeyboardRemove)
+from aiogram.types import (
+    ContentType,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
+)
 from dotenv import load_dotenv
 
 project_root = Path(__file__).parent.parent.parent
@@ -20,7 +25,7 @@ sys.path.append(str(project_root))
 from app.backend.db_client import AirtableClient
 
 load_dotenv()
-API_URL = os.getenv('BACKEND_URL', 'http://backend:8000')
+API_URL = os.getenv('BACKEND_URL', 'https://dw25.vladimirskvortsov.com')
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 if not TOKEN:
     raise RuntimeError('TELEGRAM_TOKEN is not set')
@@ -53,27 +58,18 @@ async def cmd_start(message: types.Message):
         rec = db.create_user(tg_id=str(user.id), login=None, password=None)
         logging.info(f'Created new user: {rec}')
 
-    await message.answer(
-        'Добро пожаловать! Выберите действие:',
-        reply_markup=main_menu()
-    )
+    await message.answer('Добро пожаловать! Выберите действие:', reply_markup=main_menu())
 
 
 @dp.message_handler(lambda m: m.text == '📁 Загрузить файл')
 async def cmd_upload_file(message: types.Message):
-    await message.answer(
-        'Пришлите файл для анализа',
-        reply_markup=ReplyKeyboardRemove()
-    )
+    await message.answer('Пришлите файл для анализа', reply_markup=ReplyKeyboardRemove())
     await Form.waiting_for_file.set()
 
 
 @dp.message_handler(lambda m: m.text == '✍️ Ввести текст')
 async def cmd_enter_text(message: types.Message):
-    await message.answer(
-        'Введите текст для анализа',
-        reply_markup=ReplyKeyboardRemove()
-    )
+    await message.answer('Введите текст для анализа', reply_markup=ReplyKeyboardRemove())
     await Form.waiting_for_text.set()
 
 
@@ -115,9 +111,8 @@ async def handle_file(message: types.Message, state: FSMContext):
         ext = filename.rsplit('.', 1)[-1].lower()
         if mime not in SUPPORTED_MIMES or ext not in SUPPORTED_EXT:
             await message.answer(
-                '❌ Неподдерживаемый формат.\n'
-                f'Поддерживаемые типы: {", ".join(sorted(SUPPORTED_EXT))}',
-                reply_markup=main_menu()
+                f'❌ Неподдерживаемый формат.\nПоддерживаемые типы: {", ".join(sorted(SUPPORTED_EXT))}',
+                reply_markup=main_menu(),
             )
             return await state.finish()
         await message.document.download(destination_file=bio)
@@ -128,8 +123,7 @@ async def handle_file(message: types.Message, state: FSMContext):
         mime = 'image/jpeg'
     else:
         await message.answer(
-            'Пожалуйста, пришлите файл формата PDF, DOCX, TXT или изображение.',
-            reply_markup=main_menu()
+            'Пожалуйста, пришлите файл формата PDF, DOCX, TXT или изображение.', reply_markup=main_menu()
         )
         return await state.finish()
     bio.seek(0)
@@ -141,26 +135,17 @@ async def handle_file(message: types.Message, state: FSMContext):
             result = await resp.json()
 
     if result.get('text', 0) == 0:
-        await bot.send_message(
-            message.chat.id,
-            'Ошибка при разборе. Повторите запрос',
-            reply_markup=main_menu()
-        )
+        await bot.send_message(message.chat.id, 'Ошибка при разборе. Повторите запрос', reply_markup=main_menu())
 
         await state.finish()
-    rec = db.create_record(result['text'], result['tokens'], result['explanation'], result['score'],
-                           result['examples'])
+    rec = db.create_record(result['text'], result['tokens'], result['explanation'], result['score'], result['examples'])
     record_id = rec['fields']['record_id']
 
     id = str(db.get_user_id_by_tg_id(message.from_user.id))
     db.link_user_to_record(user_id=id, record_id=record_id)
 
     await process_analysis(message.chat.id, result['score'], record_id)
-    await bot.send_message(
-        message.chat.id,
-        'Готов к использованию 😃',
-        reply_markup=main_menu()
-    )
+    await bot.send_message(message.chat.id, 'Готов к использованию 😃', reply_markup=main_menu())
 
     await state.finish()
 
@@ -170,10 +155,7 @@ async def handle_text(message: types.Message, state: FSMContext):
     text = message.text.strip()
     await message.answer('Обрабатываем текст...', reply_markup=ReplyKeyboardRemove())
     async with aiohttp.ClientSession() as session:
-        resp = await session.post(
-            f'{API_URL}/api/v1/score/text',
-            json={'text': text, 'models': ['gpt', 'claude']}
-        )
+        resp = await session.post(f'{API_URL}/api/v1/score/text', json={'text': text, 'models': ['gpt', 'claude']})
         result = await resp.json()
     rec = db.create_record(text, result['tokens'], result['explanation'], result['score'], result['examples'])
     record_id = rec['fields']['record_id']
@@ -182,11 +164,7 @@ async def handle_text(message: types.Message, state: FSMContext):
     db.link_user_to_record(user_id=str(id), record_id=record_id)
 
     await process_analysis(message.chat.id, result['score'], record_id)
-    await bot.send_message(
-        message.chat.id,
-        'Готов к использованию 😃',
-        reply_markup=main_menu()
-    )
+    await bot.send_message(message.chat.id, 'Готов к использованию 😃', reply_markup=main_menu())
 
     await state.finish()
 
@@ -196,7 +174,8 @@ async def cb_show(cq: types.CallbackQuery):
     action, record_id = cq.data.split(':', 1)
     record = db.get_record_by_id(record_id)
     tokens = [
-        t for t in record['tokens']
+        t
+        for t in record['tokens']
         if len(t['token']) >= 3 and t['ai_prob'] > 0.4 and not set('#,.').intersection(t['token'])
     ]
     text = {
@@ -209,9 +188,7 @@ async def cb_show(cq: types.CallbackQuery):
     msg = await bot.send_message(
         cq.message.chat.id,
         text,
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton('❌ Удалить', callback_data=f'delmsg:{0}')
-        )
+        reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton('❌ Удалить', callback_data=f'delmsg:{0}')),
     )
 
     await bot.edit_message_reply_markup(
@@ -219,7 +196,7 @@ async def cb_show(cq: types.CallbackQuery):
         msg.message_id,
         reply_markup=InlineKeyboardMarkup().add(
             InlineKeyboardButton('❌ Удалить', callback_data=f'delmsg:{msg.message_id}')
-        )
+        ),
     )
     await cq.answer()
 
